@@ -1,7 +1,7 @@
 import { RedoOutlined } from '@ant-design/icons'
 import { HStack } from '@renderer/components/Layout'
-import PromptPopup from '@renderer/components/Popups/PromptPopup'
-import { isEmbeddingModel } from '@renderer/config/models'
+import ModelSelector from '@renderer/components/ModelSelector'
+import { isEmbeddingModel, isRerankModel, isTextToImageModel } from '@renderer/config/models'
 import { TRANSLATE_PROMPT } from '@renderer/config/prompts'
 import { useTheme } from '@renderer/context/ThemeProvider'
 import { useDefaultModel } from '@renderer/hooks/useAssistant'
@@ -11,27 +11,20 @@ import { getModelUniqId, hasModel } from '@renderer/services/ModelService'
 import { useAppDispatch } from '@renderer/store'
 import { setTranslateModelPrompt } from '@renderer/store/settings'
 import { Model } from '@renderer/types'
-import { Button, Select, Tooltip } from 'antd'
-import { find, sortBy } from 'lodash'
-import { FolderPen, Languages, MessageSquareMore, Rocket, Settings2 } from 'lucide-react'
-import { FC, useMemo } from 'react'
+import { Button, Tooltip } from 'antd'
+import { find } from 'lodash'
+import { FolderPen, Languages, MessageSquareMore, Settings2 } from 'lucide-react'
+import { FC, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { SettingContainer, SettingDescription, SettingGroup, SettingTitle } from '..'
+import TranslateSettingsPopup from '../TranslateSettingsPopup/TranslateSettingsPopup'
 import DefaultAssistantSettings from './DefaultAssistantSettings'
 import TopicNamingModalPopup from './TopicNamingModalPopup'
 
 const ModelSettings: FC = () => {
-  const {
-    defaultModel,
-    topicNamingModel,
-    translateModel,
-    quickAssistantModel,
-    setDefaultModel,
-    setTopicNamingModel,
-    setTranslateModel,
-    setQuickAssistantModel
-  } = useDefaultModel()
+  const { defaultModel, topicNamingModel, translateModel, setDefaultModel, setTopicNamingModel, setTranslateModel } =
+    useDefaultModel()
   const { providers } = useProviders()
   const allModels = providers.map((p) => p.models).flat()
   const { theme } = useTheme()
@@ -40,18 +33,10 @@ const ModelSettings: FC = () => {
 
   const dispatch = useAppDispatch()
 
-  const selectOptions = providers
-    .filter((p) => p.models.length > 0)
-    .map((p) => ({
-      label: p.isSystem ? t(`provider.${p.id}`) : p.name,
-      title: p.name,
-      options: sortBy(p.models, 'name')
-        .filter((m) => !isEmbeddingModel(m))
-        .map((m) => ({
-          label: `${m.name} | ${p.isSystem ? t(`provider.${p.id}`) : p.name}`,
-          value: getModelUniqId(m)
-        }))
-    }))
+  const modelPredicate = useCallback(
+    (m: Model) => !isEmbeddingModel(m) && !isRerankModel(m) && !isTextToImageModel(m),
+    []
+  )
 
   const defaultModelValue = useMemo(
     () => (hasModel(defaultModel) ? getModelUniqId(defaultModel) : undefined),
@@ -68,26 +53,6 @@ const ModelSettings: FC = () => {
     [translateModel]
   )
 
-  const defaultQuickAssistantModel = useMemo(
-    () => (hasModel(quickAssistantModel) ? getModelUniqId(quickAssistantModel) : undefined),
-    [quickAssistantModel]
-  )
-
-  const onUpdateTranslateModel = async () => {
-    const prompt = await PromptPopup.show({
-      title: t('settings.models.translate_model_prompt_title'),
-      message: t('settings.models.translate_model_prompt_message'),
-      defaultValue: translateModelPrompt,
-      inputProps: {
-        rows: 10,
-        onPressEnter: () => {}
-      }
-    })
-    if (prompt) {
-      dispatch(setTranslateModelPrompt(prompt))
-    }
-  }
-
   const onResetTranslatePrompt = () => {
     dispatch(setTranslateModelPrompt(TRANSLATE_PROMPT))
   }
@@ -102,13 +67,13 @@ const ModelSettings: FC = () => {
           </HStack>
         </SettingTitle>
         <HStack alignItems="center">
-          <Select
+          <ModelSelector
+            providers={providers}
+            predicate={modelPredicate}
             value={defaultModelValue}
             defaultValue={defaultModelValue}
             style={{ width: 360 }}
             onChange={(value) => setDefaultModel(find(allModels, JSON.parse(value)) as Model)}
-            options={selectOptions}
-            showSearch
             placeholder={t('settings.models.empty')}
           />
           <Button icon={<Settings2 size={16} />} style={{ marginLeft: 8 }} onClick={DefaultAssistantSettings.show} />
@@ -123,13 +88,13 @@ const ModelSettings: FC = () => {
           </HStack>
         </SettingTitle>
         <HStack alignItems="center">
-          <Select
+          <ModelSelector
+            providers={providers}
+            predicate={modelPredicate}
             value={defaultTopicNamingModel}
             defaultValue={defaultTopicNamingModel}
             style={{ width: 360 }}
             onChange={(value) => setTopicNamingModel(find(allModels, JSON.parse(value)) as Model)}
-            options={selectOptions}
-            showSearch
             placeholder={t('settings.models.empty')}
           />
           <Button icon={<Settings2 size={16} />} style={{ marginLeft: 8 }} onClick={TopicNamingModalPopup.show} />
@@ -144,16 +109,20 @@ const ModelSettings: FC = () => {
           </HStack>
         </SettingTitle>
         <HStack alignItems="center">
-          <Select
+          <ModelSelector
+            providers={providers}
+            predicate={modelPredicate}
             value={defaultTranslateModel}
             defaultValue={defaultTranslateModel}
             style={{ width: 360 }}
             onChange={(value) => setTranslateModel(find(allModels, JSON.parse(value)) as Model)}
-            options={selectOptions}
-            showSearch
             placeholder={t('settings.models.empty')}
           />
-          <Button icon={<Settings2 size={16} />} style={{ marginLeft: 8 }} onClick={onUpdateTranslateModel} />
+          <Button
+            icon={<Settings2 size={16} />}
+            style={{ marginLeft: 8 }}
+            onClick={() => TranslateSettingsPopup.show()}
+          />
           {translateModelPrompt !== TRANSLATE_PROMPT && (
             <Tooltip title={t('common.reset')}>
               <Button icon={<RedoOutlined />} style={{ marginLeft: 8 }} onClick={onResetTranslatePrompt}></Button>
@@ -161,26 +130,6 @@ const ModelSettings: FC = () => {
           )}
         </HStack>
         <SettingDescription>{t('settings.models.translate_model_description')}</SettingDescription>
-      </SettingGroup>
-      <SettingGroup theme={theme}>
-        <SettingTitle style={{ marginBottom: 12 }}>
-          <HStack alignItems="center" gap={10}>
-            <Rocket size={18} color="var(--color-text)" />
-            {t('settings.models.quick_assistant_model')}
-          </HStack>
-        </SettingTitle>
-        <HStack alignItems="center">
-          <Select
-            value={defaultQuickAssistantModel}
-            defaultValue={defaultQuickAssistantModel}
-            style={{ width: 360 }}
-            onChange={(value) => setQuickAssistantModel(find(allModels, JSON.parse(value)) as Model)}
-            options={selectOptions}
-            showSearch
-            placeholder={t('settings.models.empty')}
-          />
-        </HStack>
-        <SettingDescription>{t('settings.models.quick_assistant_model_description')}</SettingDescription>
       </SettingGroup>
     </SettingContainer>
   )

@@ -1,5 +1,6 @@
 import { Collapse } from 'antd'
 import { merge } from 'lodash'
+import { ChevronRight } from 'lucide-react'
 import { FC, memo, useMemo, useState } from 'react'
 
 interface CustomCollapseProps {
@@ -10,6 +11,7 @@ interface CustomCollapseProps {
   defaultActiveKey?: string[]
   activeKey?: string[]
   collapsible?: 'header' | 'icon' | 'disabled'
+  onChange?: (activeKeys: string | string[]) => void
   style?: React.CSSProperties
   styles?: {
     header?: React.CSSProperties
@@ -25,6 +27,7 @@ const CustomCollapse: FC<CustomCollapseProps> = ({
   defaultActiveKey = ['1'],
   activeKey,
   collapsible = undefined,
+  onChange,
   style,
   styles
 }) => {
@@ -75,9 +78,20 @@ const CustomCollapse: FC<CustomCollapseProps> = ({
       style={collapseStyle}
       defaultActiveKey={defaultActiveKey}
       activeKey={activeKey}
-      destroyInactivePanel={destroyInactivePanel}
+      destroyOnHidden={destroyInactivePanel}
       collapsible={collapsible}
-      onChange={setActiveKeys}
+      onChange={(keys) => {
+        setActiveKeys(keys)
+        onChange?.(keys)
+      }}
+      expandIcon={({ isActive }) => (
+        <ChevronRight
+          size={16}
+          color="var(--color-text-3)"
+          strokeWidth={1.5}
+          style={{ transform: isActive ? 'rotate(90deg)' : 'rotate(0deg)' }}
+        />
+      )}
       items={[
         {
           styles: collapseItemStyles,

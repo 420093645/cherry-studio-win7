@@ -1,12 +1,14 @@
-import { isWindows } from '@renderer/config/constant'
+import { isMac, isWin } from '@renderer/config/constant'
 import { useTheme } from '@renderer/context/ThemeProvider'
 import { useSelectionAssistant } from '@renderer/hooks/useSelectionAssistant'
+import { getSelectionDescriptionLabel } from '@renderer/i18n/label'
 import { FilterMode, TriggerMode } from '@renderer/types/selectionTypes'
 import SelectionToolbar from '@renderer/windows/selection/toolbar/SelectionToolbar'
 import { Button, Radio, Row, Slider, Switch, Tooltip } from 'antd'
 import { CircleHelp, Edit2 } from 'lucide-react'
 import { FC, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { Link } from 'react-router-dom'
 import styled from 'styled-components'
 
 import {
@@ -18,8 +20,9 @@ import {
   SettingRowTitle,
   SettingTitle
 } from '..'
-import SelectionActionsList from './SelectionActionsList'
-import SelectionFilterListModal from './SelectionFilterListModal'
+import MacProcessTrustHintModal from './components/MacProcessTrustHintModal'
+import SelectionActionsList from './components/SelectionActionsList'
+import SelectionFilterListModal from './components/SelectionFilterListModal'
 
 const SelectionAssistantSettings: FC = () => {
   const { theme } = useTheme()
@@ -48,18 +51,47 @@ const SelectionAssistantSettings: FC = () => {
     setFilterMode,
     setFilterList
   } = useSelectionAssistant()
+
+  const isSupportedOS = isWin || isMac
+
   const [isFilterListModalOpen, setIsFilterListModalOpen] = useState(false)
+  const [isMacTrustModalOpen, setIsMacTrustModalOpen] = useState(false)
+  const [opacityValue, setOpacityValue] = useState(actionWindowOpacity)
 
   // force disable selection assistant on non-windows systems
   useEffect(() => {
-    if (!isWindows && selectionEnabled) {
-      setSelectionEnabled(false)
+    const checkMacProcessTrust = async () => {
+      const isTrusted = await window.api.mac.isProcessTrusted()
+      if (!isTrusted) {
+        setSelectionEnabled(false)
+      }
     }
-  }, [selectionEnabled, setSelectionEnabled])
+
+    if (!isSupportedOS && selectionEnabled) {
+      setSelectionEnabled(false)
+      return
+    } else if (isMac && selectionEnabled) {
+      checkMacProcessTrust()
+    }
+  }, [isSupportedOS, selectionEnabled, setSelectionEnabled])
+
+  const handleEnableCheckboxChange = async (checked: boolean) => {
+    if (!isSupportedOS) return
+
+    if (isMac && checked) {
+      const isTrusted = await window.api.mac.isProcessTrusted()
+      if (!isTrusted) {
+        setIsMacTrustModalOpen(true)
+        return
+      }
+    }
+
+    setSelectionEnabled(checked)
+  }
 
   return (
     <SettingContainer theme={theme}>
-      <SettingGroup>
+      <SettingGroup theme={theme}>
         <Row align="middle">
           <SettingTitle>{t('selection.name')}</SettingTitle>
           <Spacer />
@@ -69,18 +101,18 @@ const SelectionAssistantSettings: FC = () => {
             style={{ fontSize: 12 }}>
             {'FAQ & ' + t('settings.about.feedback.button')}
           </Button>
-          <ExperimentalText>{t('selection.settings.experimental')}</ExperimentalText>
+          {isMac && <ExperimentalText>{t('selection.settings.experimental')}</ExperimentalText>}
         </Row>
         <SettingDivider />
         <SettingRow>
           <SettingLabel>
             <SettingRowTitle>{t('selection.settings.enable.title')}</SettingRowTitle>
-            {!isWindows && <SettingDescription>{t('selection.settings.enable.description')}</SettingDescription>}
+            {!isSupportedOS && <SettingDescription>{t('selection.settings.enable.description')}</SettingDescription>}
           </SettingLabel>
           <Switch
-            checked={isWindows && selectionEnabled}
-            onChange={(checked) => setSelectionEnabled(checked)}
-            disabled={!isWindows}
+            checked={isSupportedOS && selectionEnabled}
+            onChange={(checked) => handleEnableCheckboxChange(checked)}
+            disabled={!isSupportedOS}
           />
         </SettingRow>
 
@@ -92,16 +124,15 @@ const SelectionAssistantSettings: FC = () => {
       </SettingGroup>
       {selectionEnabled && (
         <>
-          <SettingGroup>
+          <SettingGroup theme={theme}>
             <SettingTitle>{t('selection.settings.toolbar.title')}</SettingTitle>
-
             <SettingDivider />
-
             <SettingRow>
               <SettingLabel>
                 <SettingRowTitle>
                   <div style={{ marginRight: '4px' }}>{t('selection.settings.toolbar.trigger_mode.title')}</div>
-                  <Tooltip placement="top" title={t('selection.settings.toolbar.trigger_mode.description_note')} arrow>
+                  {/* FIXME: 没有考虑Linux？ */}
+                  <Tooltip placement="top" title={getSelectionDescriptionLabel(isWin ? 'windows' : 'mac')} arrow>
                     <QuestionIcon size={14} />
                   </Tooltip>
                 </SettingRowTitle>
@@ -111,13 +142,30 @@ const SelectionAssistantSettings: FC = () => {
                 value={triggerMode}
                 onChange={(e) => setTriggerMode(e.target.value as TriggerMode)}
                 buttonStyle="solid">
-                <Radio.Button value="selected">{t('selection.settings.toolbar.trigger_mode.selected')}</Radio.Button>
-                <Radio.Button value="ctrlkey">{t('selection.settings.toolbar.trigger_mode.ctrlkey')}</Radio.Button>
+                <Tooltip placement="top" title={t('selection.settings.toolbar.trigger_mode.selected_note')} arrow>
+                  <Radio.Button value="selected">{t('selection.settings.toolbar.trigger_mode.selected')}</Radio.Button>
+                </Tooltip>
+                {isWin && (
+                  <Tooltip placement="top" title={t('selection.settings.toolbar.trigger_mode.ctrlkey_note')} arrow>
+                    <Radio.Button value="ctrlkey">{t('selection.settings.toolbar.trigger_mode.ctrlkey')}</Radio.Button>
+                  </Tooltip>
+                )}
+                <Tooltip
+                  placement="topRight"
+                  title={
+                    <div>
+                      {t('selection.settings.toolbar.trigger_mode.shortcut_note')}
+                      <Link to="/settings/shortcut" style={{ color: 'var(--color-primary)' }}>
+                        {t('selection.settings.toolbar.trigger_mode.shortcut_link')}
+                      </Link>
+                    </div>
+                  }
+                  arrow>
+                  <Radio.Button value="shortcut">{t('selection.settings.toolbar.trigger_mode.shortcut')}</Radio.Button>
+                </Tooltip>
               </Radio.Group>
             </SettingRow>
-
             <SettingDivider />
-
             <SettingRow>
               <SettingLabel>
                 <SettingRowTitle>{t('selection.settings.toolbar.compact_mode.title')}</SettingRowTitle>
@@ -127,11 +175,9 @@ const SelectionAssistantSettings: FC = () => {
             </SettingRow>
           </SettingGroup>
 
-          <SettingGroup>
+          <SettingGroup theme={theme}>
             <SettingTitle>{t('selection.settings.window.title')}</SettingTitle>
-
             <SettingDivider />
-
             <SettingRow>
               <SettingLabel>
                 <SettingRowTitle>{t('selection.settings.window.follow_toolbar.title')}</SettingRowTitle>
@@ -139,9 +185,7 @@ const SelectionAssistantSettings: FC = () => {
               </SettingLabel>
               <Switch checked={isFollowToolbar} onChange={(checked) => setIsFollowToolbar(checked)} />
             </SettingRow>
-
             <SettingDivider />
-
             <SettingRow>
               <SettingLabel>
                 <SettingRowTitle>{t('selection.settings.window.remember_size.title')}</SettingRowTitle>
@@ -149,9 +193,7 @@ const SelectionAssistantSettings: FC = () => {
               </SettingLabel>
               <Switch checked={isRemeberWinSize} onChange={(checked) => setIsRemeberWinSize(checked)} />
             </SettingRow>
-
             <SettingDivider />
-
             <SettingRow>
               <SettingLabel>
                 <SettingRowTitle>{t('selection.settings.window.auto_close.title')}</SettingRowTitle>
@@ -159,9 +201,7 @@ const SelectionAssistantSettings: FC = () => {
               </SettingLabel>
               <Switch checked={isAutoClose} onChange={(checked) => setIsAutoClose(checked)} />
             </SettingRow>
-
             <SettingDivider />
-
             <SettingRow>
               <SettingLabel>
                 <SettingRowTitle>{t('selection.settings.window.auto_pin.title')}</SettingRowTitle>
@@ -169,22 +209,21 @@ const SelectionAssistantSettings: FC = () => {
               </SettingLabel>
               <Switch checked={isAutoPin} onChange={(checked) => setIsAutoPin(checked)} />
             </SettingRow>
-
             <SettingDivider />
-
             <SettingRow>
               <SettingLabel>
                 <SettingRowTitle>{t('selection.settings.window.opacity.title')}</SettingRowTitle>
                 <SettingDescription>{t('selection.settings.window.opacity.description')}</SettingDescription>
               </SettingLabel>
-              <div style={{ marginRight: '16px' }}>{actionWindowOpacity}%</div>
+              <div style={{ marginRight: '16px' }}>{opacityValue}%</div>
               <Slider
                 style={{ width: 100 }}
                 min={20}
                 max={100}
                 reverse
-                value={actionWindowOpacity}
-                onChange={setActionWindowOpacity}
+                value={opacityValue}
+                onChange={setOpacityValue}
+                onChangeComplete={setActionWindowOpacity}
                 tooltip={{ open: false }}
               />
             </SettingRow>
@@ -192,11 +231,9 @@ const SelectionAssistantSettings: FC = () => {
 
           <SelectionActionsList actionItems={actionItems} setActionItems={setActionItems} />
 
-          <SettingGroup>
-            <SettingTitle>高级</SettingTitle>
-
+          <SettingGroup theme={theme}>
+            <SettingTitle>{t('selection.settings.advanced.title')}</SettingTitle>
             <SettingDivider />
-
             <SettingRow>
               <SettingLabel>
                 <SettingRowTitle>{t('selection.settings.advanced.filter_mode.title')}</SettingRowTitle>
@@ -224,7 +261,6 @@ const SelectionAssistantSettings: FC = () => {
                     {t('common.edit')}
                   </Button>
                 </SettingRow>
-
                 <SelectionFilterListModal
                   open={isFilterListModalOpen}
                   onClose={() => setIsFilterListModalOpen(false)}
@@ -236,6 +272,8 @@ const SelectionAssistantSettings: FC = () => {
           </SettingGroup>
         </>
       )}
+
+      {isMac && <MacProcessTrustHintModal open={isMacTrustModalOpen} onClose={() => setIsMacTrustModalOpen(false)} />}
     </SettingContainer>
   )
 }

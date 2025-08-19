@@ -11,6 +11,11 @@ electronLanguages:
   - en # for macOS
 directories:
   buildResources: build
+
+protocols:
+  - name: Cherry Studio
+    schemes:
+      - cherrystudio
 files:
   - '!{.vscode,.yarn,.github}'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
@@ -97,8 +102,9 @@ afterPack: scripts/after-pack.js
 afterSign: scripts/notarize.js
 releaseInfo:
   releaseNotes: |
-    新增划词助手
-    助手支持分组
-    支持主题颜色切换
-    划词助手支持应用过滤
-    翻译模块功能改进
+    支持 GPT-5 模型
+    新增代码工具，支持快速启动 Qwen Code, Gemini Cli, Claude Code
+    翻译页面改版，支持更多设置
+    支持保存整个话题到知识库
+    坚果云备份支持设置最大备份数量
+    稳定性改进和错误修复

@@ -1,23 +1,16 @@
-import { CheckOutlined } from '@ant-design/icons'
+import EditableNumber from '@renderer/components/EditableNumber'
 import { HStack } from '@renderer/components/Layout'
 import Scrollbar from '@renderer/components/Scrollbar'
-import {
-  DEFAULT_CONTEXTCOUNT,
-  DEFAULT_MAX_TOKENS,
-  DEFAULT_TEMPERATURE,
-  isMac,
-  isWindows
-} from '@renderer/config/constant'
-import {
-  isOpenAIModel,
-  isSupportedFlexServiceTier,
-  isSupportedReasoningEffortOpenAIModel
-} from '@renderer/config/models'
+import Selector from '@renderer/components/Selector'
+import { DEFAULT_CONTEXTCOUNT, DEFAULT_MAX_TOKENS, DEFAULT_TEMPERATURE } from '@renderer/config/constant'
+import { isOpenAIModel } from '@renderer/config/models'
+import { UNKNOWN } from '@renderer/config/translate'
 import { useCodeStyle } from '@renderer/context/CodeStyleProvider'
 import { useTheme } from '@renderer/context/ThemeProvider'
 import { useAssistant } from '@renderer/hooks/useAssistant'
 import { useProvider } from '@renderer/hooks/useProvider'
 import { useSettings } from '@renderer/hooks/useSettings'
+import useTranslate from '@renderer/hooks/useTranslate'
 import { SettingDivider, SettingRow, SettingRowTitle } from '@renderer/pages/settings'
 import AssistantSettingsPopup from '@renderer/pages/settings/AssistantSettings'
 import { CollapsibleSettingGroup } from '@renderer/pages/settings/SettingGroup'
@@ -29,8 +22,9 @@ import {
   setCodeCollapsible,
   setCodeEditor,
   setCodeExecution,
-  setCodePreview,
+  setCodeImageTools,
   setCodeShowLineNumbers,
+  setCodeViewer,
   setCodeWrappable,
   setEnableBackspaceDeleteModel,
   setEnableQuickPanelTriggers,
@@ -44,22 +38,14 @@ import {
   setPasteLongTextThreshold,
   setRenderInputMessageAsMarkdown,
   setShowInputEstimatedTokens,
-  setShowMessageDivider,
   setShowPrompt,
-  setShowTokens,
   setShowTranslateConfirm,
   setThoughtAutoCollapse
 } from '@renderer/store/settings'
-import {
-  Assistant,
-  AssistantSettings,
-  CodeStyleVarious,
-  MathEngine,
-  ThemeMode,
-  TranslateLanguageVarious
-} from '@renderer/types'
+import { Assistant, AssistantSettings, CodeStyleVarious, MathEngine, ThemeMode } from '@renderer/types'
 import { modalConfirm } from '@renderer/utils'
-import { Button, Col, InputNumber, Row, Select, Slider, Switch, Tooltip } from 'antd'
+import { getSendMessageShortcutLabel } from '@renderer/utils/input'
+import { Button, Col, InputNumber, Row, Slider, Switch, Tooltip } from 'antd'
 import { CircleHelp, Settings2 } from 'lucide-react'
 import { FC, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -80,18 +66,20 @@ const SettingsTab: FC<Props> = (props) => {
   const { themeNames } = useCodeStyle()
 
   const [temperature, setTemperature] = useState(assistant?.settings?.temperature ?? DEFAULT_TEMPERATURE)
+  const [enableTemperature, setEnableTemperature] = useState(assistant?.settings?.enableTemperature ?? true)
   const [contextCount, setContextCount] = useState(assistant?.settings?.contextCount ?? DEFAULT_CONTEXTCOUNT)
   const [enableMaxTokens, setEnableMaxTokens] = useState(assistant?.settings?.enableMaxTokens ?? false)
   const [maxTokens, setMaxTokens] = useState(assistant?.settings?.maxTokens ?? 0)
   const [fontSizeValue, setFontSizeValue] = useState(fontSize)
   const [streamOutput, setStreamOutput] = useState(assistant?.settings?.streamOutput ?? true)
+  const { translateLanguages } = useTranslate()
+
   const { t } = useTranslation()
 
   const dispatch = useAppDispatch()
 
   const {
     showPrompt,
-    showMessageDivider,
     messageFont,
     showInputEstimatedTokens,
     sendMessageShortcut,
@@ -104,7 +92,8 @@ const SettingsTab: FC<Props> = (props) => {
     codeCollapsible,
     codeWrappable,
     codeEditor,
-    codePreview,
+    codeViewer,
+    codeImageTools,
     codeExecution,
     mathEngine,
     autoTranslateWithSpace,
@@ -114,8 +103,7 @@ const SettingsTab: FC<Props> = (props) => {
     messageNavigation,
     enableQuickPanelTriggers,
     enableBackspaceDeleteModel,
-    showTranslateConfirm,
-    showTokens
+    showTranslateConfirm
   } = useSettings()
 
   const onUpdateAssistantSettings = (settings: Partial<AssistantSettings>) => {
@@ -146,21 +134,21 @@ const SettingsTab: FC<Props> = (props) => {
         ? codeEditor.themeLight
         : codeEditor.themeDark
       : theme === ThemeMode.light
-        ? codePreview.themeLight
-        : codePreview.themeDark
+        ? codeViewer.themeLight
+        : codeViewer.themeDark
   }, [
     codeEditor.enabled,
     codeEditor.themeLight,
     codeEditor.themeDark,
     theme,
-    codePreview.themeLight,
-    codePreview.themeDark
+    codeViewer.themeLight,
+    codeViewer.themeDark
   ])
 
   const onCodeStyleChange = useCallback(
     (value: CodeStyleVarious) => {
       const field = theme === ThemeMode.light ? 'themeLight' : 'themeDark'
-      const action = codeEditor.enabled ? setCodeEditor : setCodePreview
+      const action = codeEditor.enabled ? setCodeEditor : setCodeViewer
       dispatch(action({ [field]: value }))
     },
     [dispatch, theme, codeEditor.enabled]
@@ -168,6 +156,7 @@ const SettingsTab: FC<Props> = (props) => {
 
   useEffect(() => {
     setTemperature(assistant?.settings?.temperature ?? DEFAULT_TEMPERATURE)
+    setEnableTemperature(assistant?.settings?.enableTemperature ?? true)
     setContextCount(assistant?.settings?.contextCount ?? DEFAULT_CONTEXTCOUNT)
     setEnableMaxTokens(assistant?.settings?.enableMaxTokens ?? false)
     setMaxTokens(assistant?.settings?.maxTokens ?? DEFAULT_MAX_TOKENS)
@@ -180,11 +169,6 @@ const SettingsTab: FC<Props> = (props) => {
   const model = assistant.model || getDefaultModel()
 
   const isOpenAI = isOpenAIModel(model)
-  const isOpenAIReasoning =
-    isSupportedReasoningEffortOpenAIModel(model) &&
-    !model.id.includes('o1-pro') &&
-    (provider.type === 'openai-response' || provider.id === 'aihubmix')
-  const isOpenAIFlexServiceTier = isSupportedFlexServiceTier(model)
 
   return (
     <Container className="settings-tab">
@@ -203,25 +187,38 @@ const SettingsTab: FC<Props> = (props) => {
         }>
         <SettingGroup style={{ marginTop: 5 }}>
           <Row align="middle">
-            <SettingRowTitleSmall>{t('chat.settings.temperature')}</SettingRowTitleSmall>
+            <SettingRowTitleSmall>{t('chat.settings.temperature.label')}</SettingRowTitleSmall>
             <Tooltip title={t('chat.settings.temperature.tip')}>
               <CircleHelp size={14} style={{ marginLeft: 4 }} color="var(--color-text-2)" />
             </Tooltip>
+            <Switch
+              size="small"
+              style={{ marginLeft: 'auto' }}
+              checked={enableTemperature}
+              onChange={(enabled) => {
+                setEnableTemperature(enabled)
+                onUpdateAssistantSettings({ enableTemperature: enabled })
+              }}
+            />
           </Row>
-          <Row align="middle" gutter={10}>
-            <Col span={23}>
-              <Slider
-                min={0}
-                max={2}
-                onChange={setTemperature}
-                onChangeComplete={onTemperatureChange}
-                value={typeof temperature === 'number' ? temperature : 0}
-                step={0.1}
-              />
-            </Col>
-          </Row>
+          {enableTemperature ? (
+            <Row align="middle" gutter={10}>
+              <Col span={23}>
+                <Slider
+                  min={0}
+                  max={2}
+                  onChange={setTemperature}
+                  onChangeComplete={onTemperatureChange}
+                  value={typeof temperature === 'number' ? temperature : 0}
+                  step={0.1}
+                />
+              </Col>
+            </Row>
+          ) : (
+            <SettingDivider />
+          )}
           <Row align="middle">
-            <SettingRowTitleSmall>{t('chat.settings.context_count')}</SettingRowTitleSmall>
+            <SettingRowTitleSmall>{t('chat.settings.context_count.label')}</SettingRowTitleSmall>
             <Tooltip title={t('chat.settings.context_count.tip')}>
               <CircleHelp size={14} style={{ marginLeft: 4 }} color="var(--color-text-2)" />
             </Tooltip>
@@ -253,7 +250,7 @@ const SettingsTab: FC<Props> = (props) => {
           <SettingDivider />
           <SettingRow>
             <Row align="middle">
-              <SettingRowTitleSmall>{t('chat.settings.max_tokens')}</SettingRowTitleSmall>
+              <SettingRowTitleSmall>{t('chat.settings.max_tokens.label')}</SettingRowTitleSmall>
               <Tooltip title={t('chat.settings.max_tokens.tip')}>
                 <CircleHelp size={14} style={{ marginLeft: 4 }} color="var(--color-text-2)" />
               </Tooltip>
@@ -299,8 +296,8 @@ const SettingsTab: FC<Props> = (props) => {
       </CollapsibleSettingGroup>
       {isOpenAI && (
         <OpenAISettingsGroup
-          isOpenAIReasoning={isOpenAIReasoning}
-          isSupportedFlexServiceTier={isOpenAIFlexServiceTier}
+          model={model}
+          providerId={provider.id}
           SettingGroup={SettingGroup}
           SettingRowTitleSmall={SettingRowTitleSmall}
         />
@@ -310,20 +307,6 @@ const SettingsTab: FC<Props> = (props) => {
           <SettingRow>
             <SettingRowTitleSmall>{t('settings.messages.prompt')}</SettingRowTitleSmall>
             <Switch size="small" checked={showPrompt} onChange={(checked) => dispatch(setShowPrompt(checked))} />
-          </SettingRow>
-          <SettingDivider />
-          <SettingRow>
-            <SettingRowTitleSmall>{t('settings.messages.tokens')}</SettingRowTitleSmall>
-            <Switch size="small" checked={showTokens} onChange={(checked) => dispatch(setShowTokens(checked))} />
-          </SettingRow>
-          <SettingDivider />
-          <SettingRow>
-            <SettingRowTitleSmall>{t('settings.messages.divider')}</SettingRowTitleSmall>
-            <Switch
-              size="small"
-              checked={showMessageDivider}
-              onChange={(checked) => dispatch(setShowMessageDivider(checked))}
-            />
           </SettingRow>
           <SettingDivider />
           <SettingRow>
@@ -337,7 +320,7 @@ const SettingsTab: FC<Props> = (props) => {
           <SettingDivider />
           <SettingRow>
             <SettingRowTitleSmall>
-              {t('chat.settings.thought_auto_collapse')}
+              {t('chat.settings.thought_auto_collapse.label')}
               <Tooltip title={t('chat.settings.thought_auto_collapse.tip')}>
                 <CircleHelp size={14} style={{ marginLeft: 4 }} color="var(--color-text-2)" />
               </Tooltip>
@@ -350,57 +333,55 @@ const SettingsTab: FC<Props> = (props) => {
           </SettingRow>
           <SettingDivider />
           <SettingRow>
-            <SettingRowTitleSmall>{t('message.message.style')}</SettingRowTitleSmall>
-            <StyledSelect
+            <SettingRowTitleSmall>{t('message.message.style.label')}</SettingRowTitleSmall>
+            <Selector
               value={messageStyle}
               onChange={(value) => dispatch(setMessageStyle(value as 'plain' | 'bubble'))}
-              style={{ width: 135 }}
-              size="small">
-              <Select.Option value="plain">{t('message.message.style.plain')}</Select.Option>
-              <Select.Option value="bubble">{t('message.message.style.bubble')}</Select.Option>
-            </StyledSelect>
+              options={[
+                { value: 'plain', label: t('message.message.style.plain') },
+                { value: 'bubble', label: t('message.message.style.bubble') }
+              ]}
+            />
           </SettingRow>
           <SettingDivider />
           <SettingRow>
-            <SettingRowTitleSmall>{t('message.message.multi_model_style')}</SettingRowTitleSmall>
-            <StyledSelect
-              size="small"
+            <SettingRowTitleSmall>{t('message.message.multi_model_style.label')}</SettingRowTitleSmall>
+            <Selector
               value={multiModelMessageStyle}
-              onChange={(value) =>
-                dispatch(setMultiModelMessageStyle(value as 'fold' | 'vertical' | 'horizontal' | 'grid'))
-              }
-              style={{ width: 135 }}>
-              <Select.Option value="fold">{t('message.message.multi_model_style.fold')}</Select.Option>
-              <Select.Option value="vertical">{t('message.message.multi_model_style.vertical')}</Select.Option>
-              <Select.Option value="horizontal">{t('message.message.multi_model_style.horizontal')}</Select.Option>
-              <Select.Option value="grid">{t('message.message.multi_model_style.grid')}</Select.Option>
-            </StyledSelect>
+              onChange={(value) => dispatch(setMultiModelMessageStyle(value))}
+              options={[
+                { value: 'fold', label: t('message.message.multi_model_style.fold.label') },
+                { value: 'vertical', label: t('message.message.multi_model_style.vertical') },
+                { value: 'horizontal', label: t('message.message.multi_model_style.horizontal') },
+                { value: 'grid', label: t('message.message.multi_model_style.grid') }
+              ]}
+            />
           </SettingRow>
           <SettingDivider />
           <SettingRow>
-            <SettingRowTitleSmall>{t('settings.messages.navigation')}</SettingRowTitleSmall>
-            <StyledSelect
-              size="small"
+            <SettingRowTitleSmall>{t('settings.messages.navigation.label')}</SettingRowTitleSmall>
+            <Selector
               value={messageNavigation}
               onChange={(value) => dispatch(setMessageNavigation(value as 'none' | 'buttons' | 'anchor'))}
-              style={{ width: 135 }}>
-              <Select.Option value="none">{t('settings.messages.navigation.none')}</Select.Option>
-              <Select.Option value="buttons">{t('settings.messages.navigation.buttons')}</Select.Option>
-              <Select.Option value="anchor">{t('settings.messages.navigation.anchor')}</Select.Option>
-            </StyledSelect>
+              options={[
+                { value: 'none', label: t('settings.messages.navigation.none') },
+                { value: 'buttons', label: t('settings.messages.navigation.buttons') },
+                { value: 'anchor', label: t('settings.messages.navigation.anchor') }
+              ]}
+            />
           </SettingRow>
           <SettingDivider />
           <SettingRow>
-            <SettingRowTitleSmall>{t('settings.messages.math_engine')}</SettingRowTitleSmall>
-            <StyledSelect
+            <SettingRowTitleSmall>{t('settings.messages.math_engine.label')}</SettingRowTitleSmall>
+            <Selector
               value={mathEngine}
               onChange={(value) => dispatch(setMathEngine(value as MathEngine))}
-              style={{ width: 135 }}
-              size="small">
-              <Select.Option value="KaTeX">KaTeX</Select.Option>
-              <Select.Option value="MathJax">MathJax</Select.Option>
-              <Select.Option value="none">{t('settings.messages.math_engine.none')}</Select.Option>
-            </StyledSelect>
+              options={[
+                { value: 'KaTeX', label: 'KaTeX' },
+                { value: 'MathJax', label: 'MathJax' },
+                { value: 'none', label: t('settings.messages.math_engine.none') }
+              ]}
+            />
           </SettingRow>
           <SettingDivider />
           <SettingRow>
@@ -430,17 +411,14 @@ const SettingsTab: FC<Props> = (props) => {
         <SettingGroup>
           <SettingRow>
             <SettingRowTitleSmall>{t('message.message.code_style')}</SettingRowTitleSmall>
-            <StyledSelect
+            <Selector
               value={codeStyle}
               onChange={(value) => onCodeStyleChange(value as CodeStyleVarious)}
-              style={{ width: 135 }}
-              size="small">
-              {themeNames.map((theme) => (
-                <Select.Option key={theme} value={theme}>
-                  {theme}
-                </Select.Option>
-              ))}
-            </StyledSelect>
+              options={themeNames.map((theme) => ({
+                value: theme,
+                label: theme
+              }))}
+            />
           </SettingRow>
           <SettingDivider />
           <SettingRow>
@@ -461,12 +439,12 @@ const SettingsTab: FC<Props> = (props) => {
               <SettingDivider />
               <SettingRow style={{ paddingLeft: 8 }}>
                 <SettingRowTitleSmall>
-                  {t('chat.settings.code_execution.timeout_minutes')}
+                  {t('chat.settings.code_execution.timeout_minutes.label')}
                   <Tooltip title={t('chat.settings.code_execution.timeout_minutes.tip')}>
                     <CircleHelp size={14} style={{ marginLeft: 4 }} color="var(--color-text-2)" />
                   </Tooltip>
                 </SettingRowTitleSmall>
-                <InputNumber
+                <EditableNumber
                   size="small"
                   min={1}
                   max={60}
@@ -550,6 +528,15 @@ const SettingsTab: FC<Props> = (props) => {
             <SettingRowTitleSmall>{t('chat.settings.code_wrappable')}</SettingRowTitleSmall>
             <Switch size="small" checked={codeWrappable} onChange={(checked) => dispatch(setCodeWrappable(checked))} />
           </SettingRow>
+          <SettingDivider />
+          <SettingRow>
+            <SettingRowTitleSmall>{t('chat.settings.code_image_tools')}</SettingRowTitleSmall>
+            <Switch
+              size="small"
+              checked={codeImageTools}
+              onChange={(checked) => dispatch(setCodeImageTools(checked))}
+            />
+          </SettingRow>
         </SettingGroup>
         <SettingDivider />
       </CollapsibleSettingGroup>
@@ -577,7 +564,7 @@ const SettingsTab: FC<Props> = (props) => {
               <SettingDivider />
               <SettingRow>
                 <SettingRowTitleSmall>{t('settings.messages.input.paste_long_text_threshold')}</SettingRowTitleSmall>
-                <InputNumber
+                <EditableNumber
                   size="small"
                   min={500}
                   max={10000}
@@ -640,38 +627,29 @@ const SettingsTab: FC<Props> = (props) => {
           </SettingRow>
           <SettingDivider />
           <SettingRow>
-            <SettingRowTitleSmall>{t('settings.input.target_language')}</SettingRowTitleSmall>
-            <StyledSelect
-              defaultValue={'english' as TranslateLanguageVarious}
-              size="small"
+            <SettingRowTitleSmall>{t('settings.input.target_language.label')}</SettingRowTitleSmall>
+            <Selector
               value={targetLanguage}
-              menuItemSelectedIcon={<CheckOutlined />}
-              options={[
-                { value: 'chinese', label: t('settings.input.target_language.chinese') },
-                { value: 'chinese-traditional', label: t('settings.input.target_language.chinese-traditional') },
-                { value: 'english', label: t('settings.input.target_language.english') },
-                { value: 'japanese', label: t('settings.input.target_language.japanese') },
-                { value: 'russian', label: t('settings.input.target_language.russian') }
-              ]}
-              onChange={(value) => setTargetLanguage(value as TranslateLanguageVarious)}
-              style={{ width: 135 }}
+              onChange={(value) => setTargetLanguage(value)}
+              placeholder={UNKNOWN.emoji + ' ' + UNKNOWN.label()}
+              options={translateLanguages.map((item) => {
+                return { value: item.langCode, label: item.emoji + ' ' + item.label() }
+              })}
             />
           </SettingRow>
           <SettingDivider />
           <SettingRow>
             <SettingRowTitleSmall>{t('settings.messages.input.send_shortcuts')}</SettingRowTitleSmall>
-            <StyledSelect
-              size="small"
+            <Selector
               value={sendMessageShortcut}
-              menuItemSelectedIcon={<CheckOutlined />}
-              options={[
-                { value: 'Enter', label: 'Enter' },
-                { value: 'Shift+Enter', label: 'Shift + Enter' },
-                { value: 'Ctrl+Enter', label: 'Ctrl + Enter' },
-                { value: 'Command+Enter', label: `${isMac ? '⌘' : isWindows ? 'Win' : 'Super'} + Enter` }
-              ]}
               onChange={(value) => setSendMessageShortcut(value as SendMessageShortcut)}
-              style={{ width: 135 }}
+              options={[
+                { value: 'Enter', label: getSendMessageShortcutLabel('Enter') },
+                { value: 'Ctrl+Enter', label: getSendMessageShortcutLabel('Ctrl+Enter') },
+                { value: 'Alt+Enter', label: getSendMessageShortcutLabel('Alt+Enter') },
+                { value: 'Command+Enter', label: getSendMessageShortcutLabel('Command+Enter') },
+                { value: 'Shift+Enter', label: getSendMessageShortcutLabel('Shift+Enter') }
+              ]}
             />
           </SettingRow>
         </SettingGroup>
@@ -701,14 +679,6 @@ const SettingGroup = styled.div<{ theme?: ThemeMode }>`
   margin-top: 0;
   border-radius: 8px;
   margin-bottom: 10px;
-`
-
-const StyledSelect = styled(Select)`
-  .ant-select-selector {
-    border-radius: 15px !important;
-    padding: 4px 10px !important;
-    height: 26px !important;
-  }
 `
 
 export default SettingsTab

@@ -1,22 +1,19 @@
 import { Navbar, NavbarCenter } from '@renderer/components/app/Navbar'
-import { useSidebarIconShow } from '@renderer/hooks/useSidebarIcon'
 import ModelSettings from '@renderer/pages/settings/ModelSettings/ModelSettings'
 import {
+  Brain,
   Cloud,
   Command,
-  Globe,
+  FolderCog,
   HardDrive,
   Info,
-  LayoutGrid,
   MonitorCog,
   Package,
-  Rocket,
+  PictureInPicture2,
   Settings2,
   SquareTerminal,
-  TextCursorInput,
-  Zap
+  TextCursorInput
 } from 'lucide-react'
-// 导入useAppSelector
 import { FC } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, Route, Routes, useLocation } from 'react-router-dom'
@@ -27,20 +24,16 @@ import DataSettings from './DataSettings/DataSettings'
 import DisplaySettings from './DisplaySettings/DisplaySettings'
 import GeneralSettings from './GeneralSettings'
 import MCPSettings from './MCPSettings'
-import { McpSettingsNavbar } from './MCPSettings/McpSettingsNavbar'
-import MiniAppSettings from './MiniappSettings/MiniAppSettings'
+import MemorySettings from './MemorySettings'
 import ProvidersList from './ProviderSettings'
 import QuickAssistantSettings from './QuickAssistantSettings'
-import QuickPhraseSettings from './QuickPhraseSettings'
 import SelectionAssistantSettings from './SelectionAssistantSettings/SelectionAssistantSettings'
 import ShortcutSettings from './ShortcutSettings'
-import WebSearchSettings from './WebSearchSettings'
+import ToolSettings from './ToolSettings'
 
 const SettingsPage: FC = () => {
   const { pathname } = useLocation()
   const { t } = useTranslation()
-
-  const showMiniAppSettings = useSidebarIconShow('minapp')
 
   const isRoute = (path: string): string => (pathname.startsWith(path) ? 'active' : '')
 
@@ -48,7 +41,6 @@ const SettingsPage: FC = () => {
     <Container>
       <Navbar>
         <NavbarCenter style={{ borderRight: 'none' }}>{t('settings.title')}</NavbarCenter>
-        {pathname.includes('/settings/mcp') && <McpSettingsNavbar />}
       </Navbar>
       <ContentContainer id="content-container">
         <SettingMenus>
@@ -64,22 +56,10 @@ const SettingsPage: FC = () => {
               {t('settings.model')}
             </MenuItem>
           </MenuItemLink>
-          <MenuItemLink to="/settings/web-search">
-            <MenuItem className={isRoute('/settings/web-search')}>
-              <Globe size={18} />
-              {t('settings.websearch.title')}
-            </MenuItem>
-          </MenuItemLink>
-          <MenuItemLink to="/settings/mcp">
-            <MenuItem className={isRoute('/settings/mcp')}>
-              <SquareTerminal size={18} />
-              {t('settings.mcp.title')}
-            </MenuItem>
-          </MenuItemLink>
           <MenuItemLink to="/settings/general">
             <MenuItem className={isRoute('/settings/general')}>
               <Settings2 size={18} />
-              {t('settings.general')}
+              {t('settings.general.label')}
             </MenuItem>
           </MenuItemLink>
           <MenuItemLink to="/settings/display">
@@ -88,23 +68,39 @@ const SettingsPage: FC = () => {
               {t('settings.display.title')}
             </MenuItem>
           </MenuItemLink>
-          {showMiniAppSettings && (
-            <MenuItemLink to="/settings/miniapps">
-              <MenuItem className={isRoute('/settings/miniapps')}>
-                <LayoutGrid size={18} />
-                {t('settings.miniapps.title')}
-              </MenuItem>
-            </MenuItemLink>
-          )}
+          <MenuItemLink to="/settings/data">
+            <MenuItem className={isRoute('/settings/data')}>
+              <HardDrive size={18} />
+              {t('settings.data.title')}
+            </MenuItem>
+          </MenuItemLink>
+          <MenuItemLink to="/settings/mcp">
+            <MenuItem className={isRoute('/settings/mcp')}>
+              <SquareTerminal size={18} />
+              {t('settings.mcp.title')}
+            </MenuItem>
+          </MenuItemLink>
+          <MenuItemLink to="/settings/memory">
+            <MenuItem className={isRoute('/settings/memory')}>
+              <Brain size={18} />
+              {t('memory.title')}
+            </MenuItem>
+          </MenuItemLink>
           <MenuItemLink to="/settings/shortcut">
             <MenuItem className={isRoute('/settings/shortcut')}>
               <Command size={18} />
               {t('settings.shortcuts.title')}
             </MenuItem>
           </MenuItemLink>
+          <MenuItemLink to="/settings/tool">
+            <MenuItem className={isRoute('/settings/tool')}>
+              <FolderCog size={18} />
+              {t('settings.tool.title')}
+            </MenuItem>
+          </MenuItemLink>
           <MenuItemLink to="/settings/quickAssistant">
             <MenuItem className={isRoute('/settings/quickAssistant')}>
-              <Rocket size={18} />
+              <PictureInPicture2 size={18} />
               {t('settings.quickAssistant.title')}
             </MenuItem>
           </MenuItemLink>
@@ -114,22 +110,10 @@ const SettingsPage: FC = () => {
               {t('selection.name')}
             </MenuItem>
           </MenuItemLink>
-          <MenuItemLink to="/settings/quickPhrase">
-            <MenuItem className={isRoute('/settings/quickPhrase')}>
-              <Zap size={18} />
-              {t('settings.quickPhrase.title')}
-            </MenuItem>
-          </MenuItemLink>
-          <MenuItemLink to="/settings/data">
-            <MenuItem className={isRoute('/settings/data')}>
-              <HardDrive size={18} />
-              {t('settings.data.title')}
-            </MenuItem>
-          </MenuItemLink>
           <MenuItemLink to="/settings/about">
             <MenuItem className={isRoute('/settings/about')}>
               <Info size={18} />
-              {t('settings.about')}
+              {t('settings.about.label')}
             </MenuItem>
           </MenuItemLink>
         </SettingMenus>
@@ -137,17 +121,16 @@ const SettingsPage: FC = () => {
           <Routes>
             <Route path="provider" element={<ProvidersList />} />
             <Route path="model" element={<ModelSettings />} />
-            <Route path="web-search" element={<WebSearchSettings />} />
+            <Route path="tool/*" element={<ToolSettings />} />
             <Route path="mcp/*" element={<MCPSettings />} />
-            <Route path="general" element={<GeneralSettings />} />
+            <Route path="memory" element={<MemorySettings />} />
+            <Route path="general/*" element={<GeneralSettings />} />
             <Route path="display" element={<DisplaySettings />} />
-            {showMiniAppSettings && <Route path="miniapps" element={<MiniAppSettings />} />}
             <Route path="shortcut" element={<ShortcutSettings />} />
             <Route path="quickAssistant" element={<QuickAssistantSettings />} />
             <Route path="selectionAssistant" element={<SelectionAssistantSettings />} />
             <Route path="data" element={<DataSettings />} />
             <Route path="about" element={<AboutSettings />} />
-            <Route path="quickPhrase" element={<QuickPhraseSettings />} />
           </Routes>
         </SettingContent>
       </ContentContainer>
@@ -165,6 +148,7 @@ const ContentContainer = styled.div`
   display: flex;
   flex: 1;
   flex-direction: row;
+  height: calc(100vh - var(--navbar-height));
 `
 
 const SettingMenus = styled.ul`
@@ -217,7 +201,6 @@ const SettingContent = styled.div`
   display: flex;
   height: 100%;
   flex: 1;
-  border-right: 0.5px solid var(--color-border);
 `
 
 export default SettingsPage

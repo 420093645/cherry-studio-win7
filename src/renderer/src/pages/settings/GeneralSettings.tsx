@@ -1,14 +1,26 @@
+import { InfoCircleOutlined } from '@ant-design/icons'
+import InfoTooltip from '@renderer/components/InfoTooltip'
+import { HStack } from '@renderer/components/Layout'
+import Selector from '@renderer/components/Selector'
 import { useTheme } from '@renderer/context/ThemeProvider'
-import { useSettings } from '@renderer/hooks/useSettings'
+import { useEnableDeveloperMode, useSettings } from '@renderer/hooks/useSettings'
 import i18n from '@renderer/i18n'
 import { RootState, useAppDispatch } from '@renderer/store'
-import { setEnableDataCollection, setLanguage, setNotificationSettings } from '@renderer/store/settings'
-import { setProxyMode, setProxyUrl as _setProxyUrl } from '@renderer/store/settings'
+import {
+  setEnableDataCollection,
+  setEnableSpellCheck,
+  setLanguage,
+  setNotificationSettings,
+  setProxyBypassRules as _setProxyBypassRules,
+  setProxyMode,
+  setProxyUrl as _setProxyUrl,
+  setSpellCheckLanguages
+} from '@renderer/store/settings'
 import { LanguageVarious } from '@renderer/types'
 import { NotificationSource } from '@renderer/types/notification'
 import { isValidProxyUrl } from '@renderer/utils'
-import { defaultLanguage } from '@shared/config/constant'
-import { Input, Select, Space, Switch } from 'antd'
+import { defaultByPassRules, defaultLanguage } from '@shared/config/constant'
+import { Flex, Input, Switch, Tooltip } from 'antd'
 import { FC, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSelector } from 'react-redux'
@@ -19,6 +31,7 @@ const GeneralSettings: FC = () => {
   const {
     language,
     proxyUrl: storeProxyUrl,
+    proxyBypassRules: storeProxyBypassRules,
     setLaunch,
     setTray,
     launchOnBoot,
@@ -26,10 +39,15 @@ const GeneralSettings: FC = () => {
     trayOnClose,
     tray,
     proxyMode: storeProxyMode,
-    enableDataCollection
+    enableDataCollection,
+    enableSpellCheck,
+    disableHardwareAcceleration,
+    setDisableHardwareAcceleration
   } = useSettings()
   const [proxyUrl, setProxyUrl] = useState<string | undefined>(storeProxyUrl)
+  const [proxyBypassRules, setProxyBypassRules] = useState<string | undefined>(storeProxyBypassRules)
   const { theme } = useTheme()
+  const { enableDeveloperMode, setEnableDeveloperMode } = useEnableDeveloperMode()
 
   const updateTray = (isShowTray: boolean) => {
     setTray(isShowTray)
@@ -69,6 +87,11 @@ const GeneralSettings: FC = () => {
     i18n.changeLanguage(value)
   }
 
+  const handleSpellCheckChange = (checked: boolean) => {
+    dispatch(setEnableSpellCheck(checked))
+    window.api.setEnableSpellCheck(checked)
+  }
+
   const onSetProxyUrl = () => {
     if (proxyUrl && !isValidProxyUrl(proxyUrl)) {
       window.message.error({ content: t('message.error.invalid.proxy.url'), key: 'proxy-error' })
@@ -76,10 +99,13 @@ const GeneralSettings: FC = () => {
     }
 
     dispatch(_setProxyUrl(proxyUrl))
-    window.api.setProxy(proxyUrl)
   }
 
-  const proxyModeOptions = [
+  const onSetProxyBypassRules = () => {
+    dispatch(_setProxyBypassRules(proxyBypassRules))
+  }
+
+  const proxyModeOptions: { value: 'system' | 'custom' | 'none'; label: string }[] = [
     { value: 'system', label: t('settings.proxy.mode.system') },
     { value: 'custom', label: t('settings.proxy.mode.custom') },
     { value: 'none', label: t('settings.proxy.mode.none') }
@@ -87,13 +113,6 @@ const GeneralSettings: FC = () => {
 
   const onProxyModeChange = (mode: 'system' | 'custom' | 'none') => {
     dispatch(setProxyMode(mode))
-    if (mode === 'system') {
-      window.api.setProxy('system')
-      dispatch(_setProxyUrl(undefined))
-    } else if (mode === 'none') {
-      window.api.setProxy(undefined)
-      dispatch(_setProxyUrl(undefined))
-    }
   }
 
   const languagesOptions: { value: LanguageVarious; label: string; flag: string }[] = [
@@ -109,9 +128,54 @@ const GeneralSettings: FC = () => {
   ]
 
   const notificationSettings = useSelector((state: RootState) => state.settings.notification)
+  const spellCheckLanguages = useSelector((state: RootState) => state.settings.spellCheckLanguages)
 
   const handleNotificationChange = (type: NotificationSource, value: boolean) => {
     dispatch(setNotificationSettings({ ...notificationSettings, [type]: value }))
+  }
+
+  // Define available spell check languages with display names (only commonly supported languages)
+  const spellCheckLanguageOptions = [
+    { value: 'en-US', label: 'English (US)', flag: '🇺🇸' },
+    { value: 'es', label: 'Español', flag: '🇪🇸' },
+    { value: 'fr', label: 'Français', flag: '🇫🇷' },
+    { value: 'de', label: 'Deutsch', flag: '🇩🇪' },
+    { value: 'it', label: 'Italiano', flag: '🇮🇹' },
+    { value: 'pt', label: 'Português', flag: '🇵🇹' },
+    { value: 'ru', label: 'Русский', flag: '🇷🇺' },
+    { value: 'nl', label: 'Nederlands', flag: '🇳🇱' },
+    { value: 'pl', label: 'Polski', flag: '🇵🇱' }
+  ]
+
+  const handleSpellCheckLanguagesChange = (selectedLanguages: string[]) => {
+    dispatch(setSpellCheckLanguages(selectedLanguages))
+    window.api.setSpellCheckLanguages(selectedLanguages)
+  }
+
+  const handleHardwareAccelerationChange = (checked: boolean) => {
+    window.modal.confirm({
+      title: t('settings.hardware_acceleration.confirm.title'),
+      content: t('settings.hardware_acceleration.confirm.content'),
+      okText: t('common.confirm'),
+      cancelText: t('common.cancel'),
+      centered: true,
+      onOk() {
+        try {
+          setDisableHardwareAcceleration(checked)
+        } catch (error) {
+          window.message.error({
+            content: (error as Error).message,
+            key: 'disable-hardware-acceleration-error'
+          })
+          return
+        }
+
+        // 重启应用
+        setTimeout(() => {
+          window.api.relaunchApp()
+        }, 500)
+      }
+    })
   }
 
   return (
@@ -121,35 +185,35 @@ const GeneralSettings: FC = () => {
         <SettingDivider />
         <SettingRow>
           <SettingRowTitle>{t('common.language')}</SettingRowTitle>
-          <Select defaultValue={language || defaultLanguage} style={{ width: 180 }} onChange={onSelectLanguage}>
-            {languagesOptions.map((lang) => (
-              <Select.Option key={lang.value} value={lang.value}>
-                <Space.Compact direction="horizontal" block>
-                  <Space.Compact block>{lang.label}</Space.Compact>
+          <Selector
+            size={14}
+            value={language || defaultLanguage}
+            onChange={onSelectLanguage}
+            options={languagesOptions.map((lang) => ({
+              label: (
+                <Flex align="center" gap={8}>
                   <span role="img" aria-label={lang.flag}>
                     {lang.flag}
                   </span>
-                </Space.Compact>
-              </Select.Option>
-            ))}
-          </Select>
+                  {lang.label}
+                </Flex>
+              ),
+              value: lang.value
+            }))}
+          />
         </SettingRow>
         <SettingDivider />
         <SettingRow>
           <SettingRowTitle>{t('settings.proxy.mode.title')}</SettingRowTitle>
-          <Select
-            value={storeProxyMode}
-            style={{ width: 180 }}
-            onChange={onProxyModeChange}
-            options={proxyModeOptions}
-          />
+          <Selector value={storeProxyMode} onChange={onProxyModeChange} options={proxyModeOptions} />
         </SettingRow>
         {storeProxyMode === 'custom' && (
           <>
             <SettingDivider />
             <SettingRow>
-              <SettingRowTitle>{t('settings.proxy.title')}</SettingRowTitle>
+              <SettingRowTitle>{t('settings.proxy.address')}</SettingRowTitle>
               <Input
+                spellCheck={false}
                 placeholder="socks5://127.0.0.1:6153"
                 value={proxyUrl}
                 onChange={(e) => setProxyUrl(e.target.value)}
@@ -160,12 +224,65 @@ const GeneralSettings: FC = () => {
             </SettingRow>
           </>
         )}
+        {storeProxyMode === 'custom' && (
+          <>
+            <SettingDivider />
+            <SettingRow>
+              <SettingRowTitle>{t('settings.proxy.bypass')}</SettingRowTitle>
+              <Input
+                spellCheck={false}
+                placeholder={defaultByPassRules}
+                value={proxyBypassRules}
+                onChange={(e) => setProxyBypassRules(e.target.value)}
+                style={{ width: 180 }}
+                onBlur={() => onSetProxyBypassRules()}
+              />
+            </SettingRow>
+          </>
+        )}
+        <SettingDivider />
+        <SettingRow>
+          <HStack justifyContent="space-between" alignItems="center" style={{ flex: 1, marginRight: 16 }}>
+            <SettingRowTitle>{t('settings.general.spell_check.label')}</SettingRowTitle>
+            {enableSpellCheck && (
+              <Selector<string>
+                size={14}
+                multiple
+                value={spellCheckLanguages}
+                placeholder={t('settings.general.spell_check.languages')}
+                onChange={handleSpellCheckLanguagesChange}
+                options={spellCheckLanguageOptions.map((lang) => ({
+                  value: lang.value,
+                  label: (
+                    <Flex align="center" gap={8}>
+                      <span role="img" aria-label={lang.flag}>
+                        {lang.flag}
+                      </span>
+                      {lang.label}
+                    </Flex>
+                  )
+                }))}
+              />
+            )}
+          </HStack>
+          <Switch checked={enableSpellCheck} onChange={handleSpellCheckChange} />
+        </SettingRow>
+        <SettingDivider />
+        <SettingRow>
+          <SettingRowTitle>{t('settings.hardware_acceleration.title')}</SettingRowTitle>
+          <Switch checked={disableHardwareAcceleration} onChange={handleHardwareAccelerationChange} />
+        </SettingRow>
       </SettingGroup>
       <SettingGroup theme={theme}>
         <SettingTitle>{t('settings.notification.title')}</SettingTitle>
         <SettingDivider />
         <SettingRow>
-          <SettingRowTitle>{t('settings.notification.assistant')}</SettingRowTitle>
+          <SettingRowTitle style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span>{t('settings.notification.assistant')}</span>
+            <Tooltip title={t('notification.tip')} placement="right">
+              <InfoCircleOutlined style={{ cursor: 'pointer' }} />
+            </Tooltip>
+          </SettingRowTitle>
           <Switch checked={notificationSettings.assistant} onChange={(v) => handleNotificationChange('assistant', v)} />
         </SettingRow>
         <SettingDivider />
@@ -176,10 +293,7 @@ const GeneralSettings: FC = () => {
         <SettingDivider />
         <SettingRow>
           <SettingRowTitle>{t('settings.notification.knowledge_embed')}</SettingRowTitle>
-          <Switch
-            checked={notificationSettings.knowledgeEmbed}
-            onChange={(v) => handleNotificationChange('knowledgeEmbed', v)}
-          />
+          <Switch checked={notificationSettings.knowledge} onChange={(v) => handleNotificationChange('knowledge', v)} />
         </SettingRow>
       </SettingGroup>
       <SettingGroup theme={theme}>
@@ -220,6 +334,17 @@ const GeneralSettings: FC = () => {
               window.api.config.set('enableDataCollection', v)
             }}
           />
+        </SettingRow>
+      </SettingGroup>
+      <SettingGroup theme={theme}>
+        <SettingTitle>{t('settings.developer.title')}</SettingTitle>
+        <SettingDivider />
+        <SettingRow>
+          <Flex align="center" gap={4}>
+            <SettingRowTitle>{t('settings.developer.enable_developer_mode')}</SettingRowTitle>
+            <InfoTooltip title={t('settings.developer.help')} />
+          </Flex>
+          <Switch checked={enableDeveloperMode} onChange={setEnableDeveloperMode} />
         </SettingRow>
       </SettingGroup>
     </SettingContainer>

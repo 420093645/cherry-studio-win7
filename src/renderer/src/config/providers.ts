@@ -1,13 +1,16 @@
 import ZhinaoProviderLogo from '@renderer/assets/images/models/360.png'
 import HunyuanProviderLogo from '@renderer/assets/images/models/hunyuan.png'
 import AzureProviderLogo from '@renderer/assets/images/models/microsoft.png'
+import Ai302ProviderLogo from '@renderer/assets/images/providers/302ai.webp'
 import AiHubMixProviderLogo from '@renderer/assets/images/providers/aihubmix.webp'
 import AlayaNewProviderLogo from '@renderer/assets/images/providers/alayanew.webp'
 import AnthropicProviderLogo from '@renderer/assets/images/providers/anthropic.png'
+import AwsProviderLogo from '@renderer/assets/images/providers/aws-bedrock.webp'
 import BaichuanProviderLogo from '@renderer/assets/images/providers/baichuan.png'
 import BaiduCloudProviderLogo from '@renderer/assets/images/providers/baidu-cloud.svg'
 import BailianProviderLogo from '@renderer/assets/images/providers/bailian.png'
 import BurnCloudProviderLogo from '@renderer/assets/images/providers/burncloud.png'
+import CephalonProviderLogo from '@renderer/assets/images/providers/cephalon.jpeg'
 import DeepSeekProviderLogo from '@renderer/assets/images/providers/deepseek.png'
 import DmxapiProviderLogo from '@renderer/assets/images/providers/DMXAPI.png'
 import FireworksProviderLogo from '@renderer/assets/images/providers/fireworks.png'
@@ -20,11 +23,13 @@ import GroqProviderLogo from '@renderer/assets/images/providers/groq.png'
 import HyperbolicProviderLogo from '@renderer/assets/images/providers/hyperbolic.png'
 import InfiniProviderLogo from '@renderer/assets/images/providers/infini.png'
 import JinaProviderLogo from '@renderer/assets/images/providers/jina.png'
+import LanyunProviderLogo from '@renderer/assets/images/providers/lanyun.png'
 import LMStudioProviderLogo from '@renderer/assets/images/providers/lmstudio.png'
 import MinimaxProviderLogo from '@renderer/assets/images/providers/minimax.png'
 import MistralProviderLogo from '@renderer/assets/images/providers/mistral.png'
 import ModelScopeProviderLogo from '@renderer/assets/images/providers/modelscope.png'
 import MoonshotProviderLogo from '@renderer/assets/images/providers/moonshot.png'
+import NewAPIProviderLogo from '@renderer/assets/images/providers/newapi.png'
 import NvidiaProviderLogo from '@renderer/assets/images/providers/nvidia.png'
 import O3ProviderLogo from '@renderer/assets/images/providers/o3.png'
 import OcoolAiProviderLogo from '@renderer/assets/images/providers/ocoolai.png'
@@ -32,6 +37,8 @@ import OllamaProviderLogo from '@renderer/assets/images/providers/ollama.png'
 import OpenAiProviderLogo from '@renderer/assets/images/providers/openai.png'
 import OpenRouterProviderLogo from '@renderer/assets/images/providers/openrouter.png'
 import PerplexityProviderLogo from '@renderer/assets/images/providers/perplexity.png'
+import Ph8ProviderLogo from '@renderer/assets/images/providers/ph8.png'
+import PoeProviderLogo from '@renderer/assets/images/providers/poe.svg'
 import PPIOProviderLogo from '@renderer/assets/images/providers/ppio.png'
 import QiniuProviderLogo from '@renderer/assets/images/providers/qiniu.webp'
 import SiliconFlowProviderLogo from '@renderer/assets/images/providers/silicon.png'
@@ -39,15 +46,550 @@ import StepProviderLogo from '@renderer/assets/images/providers/step.png'
 import TencentCloudProviderLogo from '@renderer/assets/images/providers/tencent-cloud-ti.png'
 import TogetherProviderLogo from '@renderer/assets/images/providers/together.png'
 import TokenFluxProviderLogo from '@renderer/assets/images/providers/tokenflux.png'
+import VertexAIProviderLogo from '@renderer/assets/images/providers/vertexai.svg'
 import BytedanceProviderLogo from '@renderer/assets/images/providers/volcengine.png'
 import VoyageAIProviderLogo from '@renderer/assets/images/providers/voyageai.png'
 import XirangProviderLogo from '@renderer/assets/images/providers/xirang.png'
 import ZeroOneProviderLogo from '@renderer/assets/images/providers/zero-one.png'
 import ZhipuProviderLogo from '@renderer/assets/images/providers/zhipu.png'
+import { AtLeast, OpenAIServiceTiers, Provider, SystemProvider, SystemProviderId } from '@renderer/types'
 
 import { TOKENFLUX_HOST } from './constant'
+import { SYSTEM_MODELS } from './models'
 
-const PROVIDER_LOGO_MAP = {
+export const SYSTEM_PROVIDERS_CONFIG: Record<SystemProviderId, SystemProvider> = {
+  silicon: {
+    id: 'silicon',
+    name: 'Silicon',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.siliconflow.cn',
+    models: SYSTEM_MODELS.silicon,
+    isSystem: true,
+    enabled: true
+  },
+  aihubmix: {
+    id: 'aihubmix',
+    name: 'AiHubMix',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://aihubmix.com',
+    models: SYSTEM_MODELS.aihubmix,
+    isSystem: true,
+    enabled: false
+  },
+  ocoolai: {
+    id: 'ocoolai',
+    name: 'ocoolAI',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.ocoolai.com',
+    models: SYSTEM_MODELS.ocoolai,
+    isSystem: true,
+    enabled: false
+  },
+  deepseek: {
+    id: 'deepseek',
+    name: 'deepseek',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.deepseek.com',
+    models: SYSTEM_MODELS.deepseek,
+    isSystem: true,
+    enabled: false
+  },
+  ppio: {
+    id: 'ppio',
+    name: 'PPIO',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.ppinfra.com/v3/openai/',
+    models: SYSTEM_MODELS.ppio,
+    isSystem: true,
+    enabled: false
+  },
+  alayanew: {
+    id: 'alayanew',
+    name: 'AlayaNew',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://deepseek.alayanew.com',
+    models: SYSTEM_MODELS.alayanew,
+    isSystem: true,
+    enabled: false
+  },
+  qiniu: {
+    id: 'qiniu',
+    name: 'Qiniu',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.qnaigc.com',
+    models: SYSTEM_MODELS.qiniu,
+    isSystem: true,
+    enabled: false
+  },
+  dmxapi: {
+    id: 'dmxapi',
+    name: 'DMXAPI',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://www.dmxapi.cn',
+    models: SYSTEM_MODELS.dmxapi,
+    isSystem: true,
+    enabled: false
+  },
+  burncloud: {
+    id: 'burncloud',
+    name: 'BurnCloud',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://ai.burncloud.com',
+    models: SYSTEM_MODELS.burncloud,
+    isSystem: true,
+    enabled: false
+  },
+  tokenflux: {
+    id: 'tokenflux',
+    name: 'TokenFlux',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://tokenflux.ai',
+    models: SYSTEM_MODELS.tokenflux,
+    isSystem: true,
+    enabled: false
+  },
+  '302ai': {
+    id: '302ai',
+    name: '302.AI',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.302.ai',
+    models: SYSTEM_MODELS['302ai'],
+    isSystem: true,
+    enabled: false
+  },
+  cephalon: {
+    id: 'cephalon',
+    name: 'Cephalon',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://cephalon.cloud/user-center/v1/model',
+    models: SYSTEM_MODELS.cephalon,
+    isSystem: true,
+    enabled: false
+  },
+  lanyun: {
+    id: 'lanyun',
+    name: 'LANYUN',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://maas-api.lanyun.net',
+    models: SYSTEM_MODELS.lanyun,
+    isSystem: true,
+    enabled: false
+  },
+  ph8: {
+    id: 'ph8',
+    name: 'PH8',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://ph8.co',
+    models: SYSTEM_MODELS.ph8,
+    isSystem: true,
+    enabled: false
+  },
+  openrouter: {
+    id: 'openrouter',
+    name: 'OpenRouter',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://openrouter.ai/api/v1/',
+    models: SYSTEM_MODELS.openrouter,
+    isSystem: true,
+    enabled: false
+  },
+  ollama: {
+    id: 'ollama',
+    name: 'Ollama',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'http://localhost:11434',
+    models: SYSTEM_MODELS.ollama,
+    isSystem: true,
+    enabled: false
+  },
+  'new-api': {
+    id: 'new-api',
+    name: 'New API',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'http://localhost:3000',
+    models: SYSTEM_MODELS['new-api'],
+    isSystem: true,
+    enabled: false
+  },
+  lmstudio: {
+    id: 'lmstudio',
+    name: 'LM Studio',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'http://localhost:1234',
+    models: SYSTEM_MODELS.lmstudio,
+    isSystem: true,
+    enabled: false
+  },
+  anthropic: {
+    id: 'anthropic',
+    name: 'Anthropic',
+    type: 'anthropic',
+    apiKey: '',
+    apiHost: 'https://api.anthropic.com/',
+    models: SYSTEM_MODELS.anthropic,
+    isSystem: true,
+    enabled: false
+  },
+  openai: {
+    id: 'openai',
+    name: 'OpenAI',
+    type: 'openai-response',
+    apiKey: '',
+    apiHost: 'https://api.openai.com',
+    models: SYSTEM_MODELS.openai,
+    isSystem: true,
+    enabled: false,
+    serviceTier: OpenAIServiceTiers.auto
+  },
+  'azure-openai': {
+    id: 'azure-openai',
+    name: 'Azure OpenAI',
+    type: 'azure-openai',
+    apiKey: '',
+    apiHost: '',
+    apiVersion: '',
+    models: SYSTEM_MODELS['azure-openai'],
+    isSystem: true,
+    enabled: false
+  },
+  gemini: {
+    id: 'gemini',
+    name: 'Gemini',
+    type: 'gemini',
+    apiKey: '',
+    apiHost: 'https://generativelanguage.googleapis.com',
+    models: SYSTEM_MODELS.gemini,
+    isSystem: true,
+    enabled: false,
+    isVertex: false
+  },
+  vertexai: {
+    id: 'vertexai',
+    name: 'VertexAI',
+    type: 'vertexai',
+    apiKey: '',
+    apiHost: 'https://aiplatform.googleapis.com',
+    models: SYSTEM_MODELS.vertexai,
+    isSystem: true,
+    enabled: false,
+    isVertex: true
+  },
+  github: {
+    id: 'github',
+    name: 'Github Models',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://models.github.ai/inference',
+    models: SYSTEM_MODELS.github,
+    isSystem: true,
+    enabled: false
+  },
+  copilot: {
+    id: 'copilot',
+    name: 'Github Copilot',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.githubcopilot.com/',
+    models: SYSTEM_MODELS.copilot,
+    isSystem: true,
+    enabled: false,
+    isAuthed: false
+  },
+  zhipu: {
+    id: 'zhipu',
+    name: 'ZhiPu',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://open.bigmodel.cn/api/paas/v4/',
+    models: SYSTEM_MODELS.zhipu,
+    isSystem: true,
+    enabled: false
+  },
+  yi: {
+    id: 'yi',
+    name: 'Yi',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.lingyiwanwu.com',
+    models: SYSTEM_MODELS.yi,
+    isSystem: true,
+    enabled: false
+  },
+  moonshot: {
+    id: 'moonshot',
+    name: 'Moonshot AI',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.moonshot.cn',
+    models: SYSTEM_MODELS.moonshot,
+    isSystem: true,
+    enabled: false
+  },
+  baichuan: {
+    id: 'baichuan',
+    name: 'BAICHUAN AI',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.baichuan-ai.com',
+    models: SYSTEM_MODELS.baichuan,
+    isSystem: true,
+    enabled: false
+  },
+  dashscope: {
+    id: 'dashscope',
+    name: 'Bailian',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://dashscope.aliyuncs.com/compatible-mode/v1/',
+    models: SYSTEM_MODELS.dashscope,
+    isSystem: true,
+    enabled: false
+  },
+  stepfun: {
+    id: 'stepfun',
+    name: 'StepFun',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.stepfun.com',
+    models: SYSTEM_MODELS.stepfun,
+    isSystem: true,
+    enabled: false
+  },
+  doubao: {
+    id: 'doubao',
+    name: 'doubao',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://ark.cn-beijing.volces.com/api/v3/',
+    models: SYSTEM_MODELS.doubao,
+    isSystem: true,
+    enabled: false
+  },
+  infini: {
+    id: 'infini',
+    name: 'Infini',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://cloud.infini-ai.com/maas',
+    models: SYSTEM_MODELS.infini,
+    isSystem: true,
+    enabled: false
+  },
+  minimax: {
+    id: 'minimax',
+    name: 'MiniMax',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.minimax.chat/v1/',
+    models: SYSTEM_MODELS.minimax,
+    isSystem: true,
+    enabled: false
+  },
+  groq: {
+    id: 'groq',
+    name: 'Groq',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.groq.com/openai',
+    models: SYSTEM_MODELS.groq,
+    isSystem: true,
+    enabled: false
+  },
+  together: {
+    id: 'together',
+    name: 'Together',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.together.xyz',
+    models: SYSTEM_MODELS.together,
+    isSystem: true,
+    enabled: false
+  },
+  fireworks: {
+    id: 'fireworks',
+    name: 'Fireworks',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.fireworks.ai/inference',
+    models: SYSTEM_MODELS.fireworks,
+    isSystem: true,
+    enabled: false
+  },
+  nvidia: {
+    id: 'nvidia',
+    name: 'nvidia',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://integrate.api.nvidia.com',
+    models: SYSTEM_MODELS.nvidia,
+    isSystem: true,
+    enabled: false
+  },
+  grok: {
+    id: 'grok',
+    name: 'Grok',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.x.ai',
+    models: SYSTEM_MODELS.grok,
+    isSystem: true,
+    enabled: false
+  },
+  hyperbolic: {
+    id: 'hyperbolic',
+    name: 'Hyperbolic',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.hyperbolic.xyz',
+    models: SYSTEM_MODELS.hyperbolic,
+    isSystem: true,
+    enabled: false
+  },
+  mistral: {
+    id: 'mistral',
+    name: 'Mistral',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.mistral.ai',
+    models: SYSTEM_MODELS.mistral,
+    isSystem: true,
+    enabled: false
+  },
+  jina: {
+    id: 'jina',
+    name: 'Jina',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.jina.ai',
+    models: SYSTEM_MODELS.jina,
+    isSystem: true,
+    enabled: false
+  },
+  perplexity: {
+    id: 'perplexity',
+    name: 'Perplexity',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.perplexity.ai/',
+    models: SYSTEM_MODELS.perplexity,
+    isSystem: true,
+    enabled: false
+  },
+  modelscope: {
+    id: 'modelscope',
+    name: 'ModelScope',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api-inference.modelscope.cn/v1/',
+    models: SYSTEM_MODELS.modelscope,
+    isSystem: true,
+    enabled: false
+  },
+  xirang: {
+    id: 'xirang',
+    name: 'Xirang',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://wishub-x1.ctyun.cn',
+    models: SYSTEM_MODELS.xirang,
+    isSystem: true,
+    enabled: false
+  },
+  hunyuan: {
+    id: 'hunyuan',
+    name: 'hunyuan',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.hunyuan.cloud.tencent.com',
+    models: SYSTEM_MODELS.hunyuan,
+    isSystem: true,
+    enabled: false
+  },
+  'tencent-cloud-ti': {
+    id: 'tencent-cloud-ti',
+    name: 'Tencent Cloud TI',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.lkeap.cloud.tencent.com',
+    models: SYSTEM_MODELS['tencent-cloud-ti'],
+    isSystem: true,
+    enabled: false
+  },
+  'baidu-cloud': {
+    id: 'baidu-cloud',
+    name: 'Baidu Cloud',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://qianfan.baidubce.com/v2/',
+    models: SYSTEM_MODELS['baidu-cloud'],
+    isSystem: true,
+    enabled: false
+  },
+  gpustack: {
+    id: 'gpustack',
+    name: 'GPUStack',
+    type: 'openai',
+    apiKey: '',
+    apiHost: '',
+    models: SYSTEM_MODELS.gpustack,
+    isSystem: true,
+    enabled: false
+  },
+  voyageai: {
+    id: 'voyageai',
+    name: 'VoyageAI',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.voyageai.com',
+    models: SYSTEM_MODELS.voyageai,
+    isSystem: true,
+    enabled: false
+  },
+  'aws-bedrock': {
+    id: 'aws-bedrock',
+    name: 'AWS Bedrock',
+    type: 'aws-bedrock',
+    apiKey: '',
+    apiHost: '',
+    models: SYSTEM_MODELS['aws-bedrock'],
+    isSystem: true,
+    enabled: false
+  },
+  poe: {
+    id: 'poe',
+    name: 'Poe',
+    type: 'openai',
+    apiKey: '',
+    apiHost: 'https://api.poe.com/v1/',
+    models: SYSTEM_MODELS['poe'],
+    isSystem: true,
+    enabled: false
+  }
+} as const
+
+export const SYSTEM_PROVIDERS: SystemProvider[] = Object.values(SYSTEM_PROVIDERS_CONFIG)
+
+const PROVIDER_LOGO_MAP: AtLeast<SystemProviderId, string> = {
+  ph8: Ph8ProviderLogo,
+  '302ai': Ai302ProviderLogo,
   openai: OpenAiProviderLogo,
   silicon: SiliconFlowProviderLogo,
   deepseek: DeepSeekProviderLogo,
@@ -94,7 +636,13 @@ const PROVIDER_LOGO_MAP = {
   alayanew: AlayaNewProviderLogo,
   voyageai: VoyageAIProviderLogo,
   qiniu: QiniuProviderLogo,
-  tokenflux: TokenFluxProviderLogo
+  tokenflux: TokenFluxProviderLogo,
+  cephalon: CephalonProviderLogo,
+  lanyun: LanyunProviderLogo,
+  vertexai: VertexAIProviderLogo,
+  'new-api': NewAPIProviderLogo,
+  'aws-bedrock': AwsProviderLogo,
+  poe: PoeProviderLogo
 } as const
 
 export function getProviderLogo(providerId: string) {
@@ -102,10 +650,44 @@ export function getProviderLogo(providerId: string) {
 }
 
 // export const SUPPORTED_REANK_PROVIDERS = ['silicon', 'jina', 'voyageai', 'dashscope', 'aihubmix']
-export const NOT_SUPPORTED_REANK_PROVIDERS = ['ollama']
-export const ONLY_SUPPORTED_DIMENSION_PROVIDERS = ['ollama', 'infini']
+export const NOT_SUPPORTED_RERANK_PROVIDERS = ['ollama', 'lmstudio'] as const satisfies SystemProviderId[]
+export const ONLY_SUPPORTED_DIMENSION_PROVIDERS = ['ollama', 'infini'] as const satisfies SystemProviderId[]
 
-export const PROVIDER_CONFIG = {
+type ProviderUrls = {
+  api: {
+    url: string
+  }
+  websites?: {
+    official: string
+    apiKey?: string
+    docs: string
+    models?: string
+  }
+}
+
+export const PROVIDER_URLS: Record<SystemProviderId, ProviderUrls> = {
+  ph8: {
+    api: {
+      url: 'https://ph8.co'
+    },
+    websites: {
+      official: 'https://ph8.co',
+      apiKey: 'https://ph8.co/apiKey',
+      docs: 'https://m1r239or5aw.feishu.cn/wiki/SegzwS4x1i2P4OksFY2cMvujn9f',
+      models: 'https://ph8.co/v1/models'
+    }
+  },
+  '302ai': {
+    api: {
+      url: 'https://api.302.ai'
+    },
+    websites: {
+      official: 'https://302.ai',
+      apiKey: 'https://dash.302.ai/apis/list',
+      docs: 'https://302ai.apifox.cn/api-147522039',
+      models: 'https://302.ai/pricing/'
+    }
+  },
   openai: {
     api: {
       url: 'https://api.openai.com'
@@ -115,17 +697,6 @@ export const PROVIDER_CONFIG = {
       apiKey: 'https://platform.openai.com/api-keys',
       docs: 'https://platform.openai.com/docs',
       models: 'https://platform.openai.com/docs/models'
-    }
-  },
-  o3: {
-    api: {
-      url: 'https://api.o3.fan'
-    },
-    websites: {
-      official: 'https://o3.fan',
-      apiKey: 'https://o3.fan/token',
-      docs: '',
-      models: 'https://o3.fan/info/models/'
     }
   },
   burncloud: {
@@ -144,10 +715,11 @@ export const PROVIDER_CONFIG = {
       url: 'https://api.ppinfra.com/v3/openai'
     },
     websites: {
-      official: 'https://ppio.cn/user/register?invited_by=JYT9GD&utm_source=github_cherry-studio',
-      apiKey: 'https://ppio.cn/user/register?invited_by=JYT9GD&utm_source=github_cherry-studio',
+      official: 'https://ppio.com/user/register?invited_by=JYT9GD&utm_source=github_cherry-studio&redirect=/',
+      apiKey:
+        'https://ppio.com/user/register?invited_by=JYT9GD&utm_source=github_cherry-studio&redirect=/settings/key-management',
       docs: 'https://docs.cherry-ai.com/pre-basic/providers/ppio?invited_by=JYT9GD&utm_source=github_cherry-studio',
-      models: 'https://ppio.cn/model-api/product/llm-api?invited_by=JYT9GD&utm_source=github_cherry-studio'
+      models: 'https://ppio.com/model-api/product/llm-api?invited_by=JYT9GD&utm_source=github_cherry-studio'
     }
   },
   gemini: {
@@ -169,18 +741,7 @@ export const PROVIDER_CONFIG = {
       official: 'https://www.siliconflow.cn',
       apiKey: 'https://cloud.siliconflow.cn/i/d1nTBKXU',
       docs: 'https://docs.siliconflow.cn/',
-      models: 'https://docs.siliconflow.cn/docs/model-names'
-    }
-  },
-  'gitee-ai': {
-    api: {
-      url: 'https://ai.gitee.com'
-    },
-    websites: {
-      official: 'https://ai.gitee.com/',
-      apiKey: 'https://ai.gitee.com/dashboard/settings/tokens',
-      docs: 'https://ai.gitee.com/docs/openapi/v1#tag/%E6%96%87%E6%9C%AC%E7%94%9F%E6%88%90/POST/chat/completions',
-      models: 'https://ai.gitee.com/serverless-api'
+      models: 'https://cloud.siliconflow.cn/models'
     }
   },
   deepseek: {
@@ -251,7 +812,7 @@ export const PROVIDER_CONFIG = {
   },
   github: {
     api: {
-      url: 'https://models.inference.ai.azure.com/'
+      url: 'https://models.github.ai/inference/'
     },
     websites: {
       official: 'https://github.com/marketplace/models',
@@ -283,7 +844,7 @@ export const PROVIDER_CONFIG = {
     websites: {
       official: 'https://open.bigmodel.cn/',
       apiKey: 'https://open.bigmodel.cn/usercenter/apikeys',
-      docs: 'https://open.bigmodel.cn/dev/howuse/introduction',
+      docs: 'https://docs.bigmodel.cn/',
       models: 'https://open.bigmodel.cn/modelcenter/square'
     }
   },
@@ -292,7 +853,7 @@ export const PROVIDER_CONFIG = {
       url: 'https://api.moonshot.cn'
     },
     websites: {
-      official: 'https://moonshot.ai/',
+      official: 'https://www.moonshot.cn/',
       apiKey: 'https://platform.moonshot.cn/console/api-keys',
       docs: 'https://platform.moonshot.cn/docs/',
       models: 'https://platform.moonshot.cn/docs/intro#%E6%A8%A1%E5%9E%8B%E5%88%97%E8%A1%A8'
@@ -504,17 +1065,6 @@ export const PROVIDER_CONFIG = {
       models: 'https://fireworks.ai/dashboard/models'
     }
   },
-  zhinao: {
-    api: {
-      url: 'https://api.360.cn'
-    },
-    websites: {
-      official: 'https://ai.360.com/',
-      apiKey: 'https://ai.360.com/platform/keys',
-      docs: 'https://ai.360.com/platform/docs/overview',
-      models: 'https://ai.360.com/platform/limit'
-    }
-  },
   hunyuan: {
     api: {
       url: 'https://api.hunyuan.cloud.tencent.com'
@@ -612,5 +1162,135 @@ export const PROVIDER_CONFIG = {
       docs: `${TOKENFLUX_HOST}/docs`,
       models: `${TOKENFLUX_HOST}/models`
     }
+  },
+  cephalon: {
+    api: {
+      url: 'https://cephalon.cloud/user-center/v1/model'
+    },
+    websites: {
+      official: 'https://cephalon.cloud/share/register-landing?invite_id=jSdOYA',
+      apiKey: 'https://cephalon.cloud/api',
+      docs: 'https://cephalon.cloud/apitoken/1864244127731589124',
+      models: 'https://cephalon.cloud/model'
+    }
+  },
+  lanyun: {
+    api: {
+      url: 'https://maas-api.lanyun.net'
+    },
+    websites: {
+      official: 'https://maas.lanyun.net',
+      apiKey: 'https://maas.lanyun.net/#/system/apiKey',
+      docs: 'https://archive.lanyun.net/#/maas/',
+      models: 'https://maas.lanyun.net/#/model/modelSquare'
+    }
+  },
+  vertexai: {
+    api: {
+      url: 'https://console.cloud.google.com/apis/api/aiplatform.googleapis.com/overview'
+    },
+    websites: {
+      official: 'https://cloud.google.com/vertex-ai',
+      apiKey: 'https://console.cloud.google.com/apis/credentials',
+      docs: 'https://cloud.google.com/vertex-ai/generative-ai/docs',
+      models: 'https://cloud.google.com/vertex-ai/generative-ai/docs/learn/models'
+    }
+  },
+  'new-api': {
+    api: {
+      url: 'http://localhost:3000'
+    },
+    websites: {
+      official: 'https://docs.newapi.pro/',
+      docs: 'https://docs.newapi.pro'
+    }
+  },
+  'aws-bedrock': {
+    api: {
+      url: ''
+    },
+    websites: {
+      official: 'https://aws.amazon.com/bedrock/',
+      apiKey: 'https://docs.aws.amazon.com/bedrock/latest/userguide/security-iam.html',
+      docs: 'https://docs.aws.amazon.com/bedrock/',
+      models: 'https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html'
+    }
+  },
+  poe: {
+    api: {
+      url: 'https://api.poe.com/v1'
+    },
+    websites: {
+      official: 'https://poe.com/',
+      apiKey: 'https://poe.com/api_key',
+      docs: 'https://creator.poe.com/docs/external-applications/openai-compatible-api',
+      models: 'https://poe.com/'
+    }
   }
+}
+
+const NOT_SUPPORT_ARRAY_CONTENT_PROVIDERS = [
+  'deepseek',
+  'baichuan',
+  'minimax',
+  'xirang'
+] as const satisfies SystemProviderId[]
+
+/**
+ * 判断提供商是否支持 message 的 content 为数组类型。 Only for OpenAI Chat Completions API.
+ */
+export const isSupportArrayContentProvider = (provider: Provider) => {
+  return (
+    provider.apiOptions?.isNotSupportArrayContent !== true &&
+    !NOT_SUPPORT_ARRAY_CONTENT_PROVIDERS.some((pid) => pid === provider.id)
+  )
+}
+
+const NOT_SUPPORT_DEVELOPER_ROLE_PROVIDERS = ['poe'] as const satisfies SystemProviderId[]
+
+/**
+ * 判断提供商是否支持 developer 作为 message role。 Only for OpenAI API.
+ */
+export const isSupportDeveloperRoleProvider = (provider: Provider) => {
+  return (
+    provider.apiOptions?.isNotSupportDeveloperRole !== true &&
+    !NOT_SUPPORT_DEVELOPER_ROLE_PROVIDERS.some((pid) => pid === provider.id)
+  )
+}
+
+const NOT_SUPPORT_STREAM_OPTIONS_PROVIDERS = ['mistral'] as const satisfies SystemProviderId[]
+
+/**
+ * 判断提供商是否支持 stream_options 参数。Only for OpenAI API.
+ */
+export const isSupportStreamOptionsProvider = (provider: Provider) => {
+  return (
+    provider.apiOptions?.isNotSupportStreamOptions !== true &&
+    !NOT_SUPPORT_STREAM_OPTIONS_PROVIDERS.some((pid) => pid === provider.id)
+  )
+}
+
+// NOTE: 暂时不知道哪些系统提供商不支持该参数，先默认都支持。出问题的时候可以先用自定义参数顶着
+const NOT_SUPPORT_QWEN3_ENABLE_THINKING_PROVIDER = [] as const satisfies SystemProviderId[]
+
+/**
+ * 判断提供商是否支持使用 enable_thinking 参数来控制 Qwen3 等模型的思考。 Only for OpenAI Chat Completions API.
+ */
+export const isSupportEnableThinkingProvider = (provider: Provider) => {
+  return (
+    provider.apiOptions?.isNotSupportEnableThinking !== true &&
+    !NOT_SUPPORT_QWEN3_ENABLE_THINKING_PROVIDER.some((pid) => pid === provider.id)
+  )
+}
+
+const NOT_SUPPORT_SERVICE_TIER_PROVIDERS = ['github', 'copilot'] as const satisfies SystemProviderId[]
+
+/**
+ * 判断提供商是否支持 service_tier 设置。 Only for OpenAI API.
+ */
+export const isSupportServiceTierProvider = (provider: Provider) => {
+  return (
+    provider.apiOptions?.isNotSupportServiceTier !== true &&
+    !NOT_SUPPORT_SERVICE_TIER_PROVIDERS.some((pid) => pid === provider.id)
+  )
 }

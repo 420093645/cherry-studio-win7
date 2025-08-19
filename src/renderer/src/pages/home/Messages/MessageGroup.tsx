@@ -1,3 +1,4 @@
+import { loggerService } from '@logger'
 import Scrollbar from '@renderer/components/Scrollbar'
 import { MessageEditingProvider } from '@renderer/context/MessageEditingContext'
 import { useChatContext } from '@renderer/hooks/useChatContext'
@@ -10,31 +11,46 @@ import type { Message } from '@renderer/types/newMessage'
 import { classNames } from '@renderer/utils'
 import { Popover } from 'antd'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import styled, { css } from 'styled-components'
+import styled from 'styled-components'
 
+import { useChatMaxWidth } from '../Chat'
 import MessageItem from './Message'
 import MessageGroupMenuBar from './MessageGroupMenuBar'
-import SelectableMessage from './MessageSelect'
 
+const logger = loggerService.withContext('MessageGroup')
 interface Props {
   messages: (Message & { index: number })[]
   topic: Topic
-  hidePresetMessages?: boolean
   registerMessageElement?: (id: string, element: HTMLElement | null) => void
 }
 
-const MessageGroup = ({ messages, topic, hidePresetMessages, registerMessageElement }: Props) => {
+const MessageGroup = ({ messages, topic, registerMessageElement }: Props) => {
+  const messageLength = messages.length
+
+  // Hooks
   const { editMessage } = useMessageOperations(topic)
   const { multiModelMessageStyle: multiModelMessageStyleSetting, gridColumns, gridPopoverTrigger } = useSettings()
   const { isMultiSelectMode } = useChatContext(topic)
+  const maxWidth = useChatMaxWidth()
 
-  const [multiModelMessageStyle, setMultiModelMessageStyle] = useState<MultiModelMessageStyle>(
+  const isGrouped = isMultiSelectMode ? false : messageLength > 1 && messages.every((m) => m.role === 'assistant')
+
+  // States
+  const [_multiModelMessageStyle, setMultiModelMessageStyle] = useState<MultiModelMessageStyle>(
     messages[0].multiModelMessageStyle || multiModelMessageStyleSetting
   )
-
-  const messageLength = messages.length
-  const prevMessageLengthRef = useRef(messageLength)
   const [selectedIndex, setSelectedIndex] = useState(messageLength - 1)
+
+  // Refs
+  const prevMessageLengthRef = useRef(messageLength)
+
+  // 对于单模型消息，采用简单的样式，避免 overflow 影响内部的 sticky 效果
+  const multiModelMessageStyle = useMemo(
+    () => (messageLength < 2 ? 'fold' : _multiModelMessageStyle),
+    [_multiModelMessageStyle, messageLength]
+  )
+
+  const isGrid = multiModelMessageStyle === 'grid'
 
   const selectedMessageId = useMemo(() => {
     if (messages.length === 1) return messages[0]?.id
@@ -61,10 +77,6 @@ const MessageGroup = ({ messages, topic, hidePresetMessages, registerMessageElem
     },
     [editMessage, selectedMessageId]
   )
-
-  const isGrouped = isMultiSelectMode ? false : messageLength > 1 && messages.every((m) => m.role === 'assistant')
-  const isHorizontal = multiModelMessageStyle === 'horizontal'
-  const isGrid = multiModelMessageStyle === 'grid'
 
   useEffect(() => {
     if (messageLength > prevMessageLengthRef.current) {
@@ -160,6 +172,43 @@ const MessageGroup = ({ messages, topic, hidePresetMessages, registerMessageElem
     return () => messages.forEach((message) => registerMessageElement?.(message.id, null))
   }, [messages, registerMessageElement])
 
+  const onUpdateUseful = useCallback(
+    (msgId: string) => {
+      const message = messages.find((msg) => msg.id === msgId)
+      if (!message) {
+        logger.error("the message to update doesn't exist in this group")
+        return
+      }
+      if (message.useful) {
+        editMessage(msgId, { useful: undefined })
+        return
+      } else {
+        const toResetUsefulMsgs = messages.filter((msg) => msg.id !== msgId && msg.useful)
+        toResetUsefulMsgs.forEach(async (msg) => {
+          editMessage(msg.id, {
+            useful: undefined
+          })
+        })
+        editMessage(msgId, { useful: true })
+      }
+    },
+    [editMessage, messages]
+  )
+
+  const groupContextMessageId = useMemo(() => {
+    // NOTE: 旧数据可能存在一组消息有多个useful的情况，只取第一个，不再另作迁移
+    // find first useful
+    const usefulMsg = messages.find((msg) => msg.useful)
+    if (usefulMsg) {
+      return usefulMsg.id
+    } else if (messages.length > 0) {
+      return messages[0].id
+    } else {
+      logger.warn('Empty message group')
+      return ''
+    }
+  }, [messages])
+
   const renderMessage = useCallback(
     (message: Message & { index: number }) => {
       const isGridGroupMessage = isGrid && message.role === 'assistant' && isGrouped
@@ -167,26 +216,24 @@ const MessageGroup = ({ messages, topic, hidePresetMessages, registerMessageElem
         isGrouped,
         message,
         topic,
-        index: message.index,
-        hidePresetMessages,
-        style: {
-          paddingTop: isGrouped && ['horizontal', 'grid'].includes(multiModelMessageStyle) ? 0 : 15
-        }
+        index: message.index
       }
 
       const messageContent = (
         <MessageWrapper
           id={`message-${message.id}`}
-          $layout={multiModelMessageStyle}
-          // $selected={index === selectedIndex}
-          $isGrouped={isGrouped}
           key={message.id}
-          className={classNames({
-            'group-message-wrapper': message.role === 'assistant' && isHorizontal && isGrouped,
-            [multiModelMessageStyle]: isGrouped,
-            selected: message.id === selectedMessageId
-          })}>
-          <MessageItem {...messageProps} />
+          className={classNames([
+            {
+              [multiModelMessageStyle]: message.role === 'assistant' && messages.length > 1,
+              selected: message.id === selectedMessageId
+            }
+          ])}>
+          <MessageItem
+            onUpdateUseful={onUpdateUseful}
+            isGroupContextMessage={isGrouped && message.id === groupContextMessageId}
+            {...messageProps}
+          />
         </MessageWrapper>
       )
 
@@ -194,40 +241,40 @@ const MessageGroup = ({ messages, topic, hidePresetMessages, registerMessageElem
         return (
           <Popover
             key={message.id}
+            destroyTooltipOnHide
             content={
               <MessageWrapper
-                $layout={multiModelMessageStyle}
-                // $selected={index === selectedIndex}
-                $isGrouped={isGrouped}
-                $isInPopover={true}>
-                <MessageItem {...messageProps} />
+                className={classNames([
+                  'in-popover',
+                  {
+                    [multiModelMessageStyle]: message.role === 'assistant' && messages.length > 1,
+                    selected: message.id === selectedMessageId
+                  }
+                ])}>
+                <MessageItem onUpdateUseful={onUpdateUseful} {...messageProps} />
               </MessageWrapper>
             }
             trigger={gridPopoverTrigger}
-            styles={{ root: { maxWidth: '60vw', minWidth: '550px', overflowY: 'auto', zIndex: 1000 } }}>
-            <div style={{ cursor: 'pointer' }}>{messageContent}</div>
+            styles={{
+              root: { maxWidth: '60vw', overflowY: 'auto', zIndex: 1000 },
+              body: { padding: 2 }
+            }}>
+            {messageContent}
           </Popover>
         )
       }
 
-      return (
-        <SelectableMessage
-          key={`selectable-${message.id}`}
-          messageId={message.id}
-          topic={topic}
-          isClearMessage={message.type === 'clear'}>
-          {messageContent}
-        </SelectableMessage>
-      )
+      return messageContent
     },
     [
       isGrid,
       isGrouped,
       topic,
-      hidePresetMessages,
       multiModelMessageStyle,
-      isHorizontal,
+      messages.length,
       selectedMessageId,
+      onUpdateUseful,
+      groupContextMessageId,
       gridPopoverTrigger
     ]
   )
@@ -235,15 +282,13 @@ const MessageGroup = ({ messages, topic, hidePresetMessages, registerMessageElem
   return (
     <MessageEditingProvider>
       <GroupContainer
-        id={`message-group-${messages[0].askId}`}
-        $isGrouped={isGrouped}
-        $layout={multiModelMessageStyle}
-        className={classNames([isGrouped && 'group-container', isHorizontal && 'horizontal', isGrid && 'grid'])}>
+        id={messages[0].askId ? `message-group-${messages[0].askId}` : undefined}
+        className={classNames([multiModelMessageStyle, { 'multi-select-mode': isMultiSelectMode }])}
+        style={{ maxWidth }}>
         <GridContainer
           $count={messageLength}
-          $layout={multiModelMessageStyle}
           $gridColumns={gridColumns}
-          className={classNames([isGrouped && 'group-grid-container', isHorizontal && 'horizontal', isGrid && 'grid'])}>
+          className={classNames([multiModelMessageStyle, { 'multi-select-mode': isMultiSelectMode }])}>
           {messages.map(renderMessage)}
         </GridContainer>
         {isGrouped && (
@@ -266,72 +311,127 @@ const MessageGroup = ({ messages, topic, hidePresetMessages, registerMessageElem
   )
 }
 
-const GroupContainer = styled.div<{ $isGrouped: boolean; $layout: MultiModelMessageStyle }>`
-  padding-top: ${({ $isGrouped, $layout }) => ($isGrouped && 'horizontal' === $layout ? '15px' : '0')};
-  &.group-container.horizontal,
-  &.group-container.grid {
-    padding: 0 20px;
-    .message {
-      padding: 0;
-    }
+const GroupContainer = styled.div`
+  [navbar-position='left'] & {
+    max-width: calc(100vw - var(--sidebar-width) - var(--assistants-width) - 20px);
+  }
+  &.horizontal,
+  &.grid {
+    padding: 4px 10px;
     .group-menu-bar {
       margin-left: 0;
       margin-right: 0;
     }
   }
+  &.multi-select-mode {
+    padding: 5px 10px;
+  }
 `
 
-const GridContainer = styled.div<{ $count: number; $layout: MultiModelMessageStyle; $gridColumns: number }>`
+const GridContainer = styled(Scrollbar)<{ $count: number; $gridColumns: number }>`
   width: 100%;
   display: grid;
-  gap: ${({ $layout }) => ($layout === 'horizontal' ? '16px' : '0')};
-  grid-template-columns: repeat(
-    ${({ $layout, $count }) => (['fold', 'vertical'].includes($layout) ? 1 : $count)},
-    minmax(480px, 1fr)
-  );
-  @media (max-width: 800px) {
-    grid-template-columns: repeat(
-      ${({ $layout, $count }) => (['fold', 'vertical'].includes($layout) ? 1 : $count)},
-      minmax(400px, 1fr)
-    );
+  overflow-y: visible;
+  gap: 16px;
+  &.horizontal {
+    padding-bottom: 4px;
+    grid-template-columns: repeat(${({ $count }) => $count}, minmax(420px, 1fr));
+    overflow-x: auto;
   }
-  ${({ $layout }) =>
-    $layout === 'horizontal' &&
-    css`
-      margin-top: 15px;
-    `}
-  ${({ $gridColumns, $layout, $count }) =>
-    $layout === 'grid' &&
-    css`
-      margin-top: 15px;
-      grid-template-columns: repeat(${$count > 1 ? $gridColumns || 2 : 1}, minmax(0, 1fr));
-      grid-template-rows: auto;
-      gap: 16px;
-    `}
-  ${({ $layout }) => {
-    return $layout === 'horizontal'
-      ? css`
-          overflow-y: auto;
-        `
-      : 'overflow-y: visible;'
-  }}
+  &.fold,
+  &.vertical {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 8px;
+  }
+  &.grid {
+    grid-template-columns: repeat(
+      ${({ $count, $gridColumns }) => ($count > 1 ? $gridColumns || 2 : 1)},
+      minmax(0, 1fr)
+    );
+    grid-template-rows: auto;
+  }
+
+  &.multi-select-mode {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 10px;
+    .grid {
+      height: auto;
+    }
+    .message {
+      border: 0.5px solid var(--color-border);
+      border-radius: 10px;
+      padding: 10px;
+      .message-content-container {
+        max-height: 200px;
+        overflow-y: hidden !important;
+      }
+      .MessageFooter {
+        display: none;
+      }
+    }
+  }
 `
 
 interface MessageWrapperProps {
-  $layout: 'fold' | 'horizontal' | 'vertical' | 'grid'
-  // $selected: boolean
-  $isGrouped: boolean
   $isInPopover?: boolean
 }
 
-const MessageWrapper = styled(Scrollbar)<MessageWrapperProps>`
-  width: 100%;
-
+const MessageWrapper = styled.div<MessageWrapperProps>`
   &.horizontal {
-    display: inline-block;
+    padding-right: 1px;
+    overflow-y: auto;
+    .message {
+      height: 100%;
+      border: 0.5px solid var(--color-border);
+      border-radius: 10px;
+    }
+    .message-content-container {
+      flex: 1;
+      padding-left: 0;
+      max-height: calc(100vh - 350px);
+      overflow-y: auto !important;
+      margin-right: -10px;
+    }
+    .MessageFooter {
+      margin-left: 0;
+      margin-top: 2px;
+      margin-bottom: 2px;
+    }
   }
   &.grid {
-    display: inline-block;
+    height: 300px;
+    overflow-y: hidden;
+    border: 0.5px solid var(--color-border);
+    border-radius: 10px;
+    cursor: pointer;
+    .message {
+      height: 100%;
+    }
+    .message-content-container {
+      overflow: hidden;
+      padding-left: 0;
+      flex: 1;
+      pointer-events: none;
+    }
+    .MessageFooter {
+      margin-left: 0;
+      margin-top: 2px;
+      margin-bottom: 2px;
+    }
+  }
+  &.in-popover {
+    height: auto;
+    border: none;
+    max-height: 50vh;
+    overflow-y: auto;
+    cursor: default;
+    .message-content-container {
+      padding-left: 0;
+      pointer-events: auto;
+    }
+    .MessageFooter {
+      margin-left: 0;
+    }
   }
   &.fold {
     display: none;
@@ -339,38 +439,6 @@ const MessageWrapper = styled(Scrollbar)<MessageWrapperProps>`
       display: inline-block;
     }
   }
-
-  ${({ $layout, $isGrouped }) => {
-    if ($layout === 'horizontal' && $isGrouped) {
-      return css`
-        border: 0.5px solid var(--color-border);
-        padding: 10px;
-        border-radius: 6px;
-        max-height: 600px;
-        margin-bottom: 10px;
-      `
-    }
-    return ''
-  }}
-
-  ${({ $layout, $isInPopover, $isGrouped }) => {
-    // 如果布局是grid，并且是组消息，则设置最大高度和溢出行为（卡片不可滚动，点击展开后可滚动）
-    // 如果布局是horizontal，则设置溢出行为（卡片可滚动）
-    // 如果布局是fold、vertical，高度不限制，与正常消息流布局一致，则设置卡片不可滚动（visible）
-    return $layout === 'grid' && $isGrouped
-      ? css`
-          max-height: ${$isInPopover ? '50vh' : '300px'};
-          overflow-y: ${$isInPopover ? 'auto' : 'hidden'};
-          border: 0.5px solid ${$isInPopover ? 'transparent' : 'var(--color-border)'};
-          padding: 10px;
-          border-radius: 6px;
-          background-color: var(--color-background);
-        `
-      : css`
-          overflow-y: ${$layout === 'horizontal' ? 'auto' : 'visible'};
-          border-radius: 6px;
-        `
-  }}
 `
 
 export default memo(MessageGroup)

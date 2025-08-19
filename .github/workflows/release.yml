@@ -27,7 +27,7 @@ jobs:
       - name: Check out Git repository
         uses: actions/checkout@v4
         with:
-          ref: main
+          fetch-depth: 0
 
       - name: Get release tag
         id: get-tag
@@ -38,6 +38,13 @@ jobs:
           else
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
+
+      - name: Set package.json version
+        shell: bash
+        run: |
+          TAG="${{ steps.get-tag.outputs.tag }}"
+          VERSION="${TAG#v}"
+          npm version "$VERSION" --no-git-tag-version --allow-same-version
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -72,13 +79,16 @@ jobs:
       - name: Build Linux
         if: matrix.os == 'ubuntu-latest'
         run: |
+          sudo apt-get install -y rpm
           yarn build:npm linux
           yarn build:linux
 
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RENDERER_VITE_AIHUBMIX_SECRET: ${{ vars.RENDERER_VITE_AIHUBMIX_SECRET }}
           NODE_OPTIONS: --max-old-space-size=8192
+          MAIN_VITE_MINERU_API_KEY: ${{ vars.MAIN_VITE_MINERU_API_KEY }}
+          RENDERER_VITE_AIHUBMIX_SECRET: ${{ vars.RENDERER_VITE_AIHUBMIX_SECRET }}
+          RENDERER_VITE_PPIO_APP_SECRET: ${{ vars.RENDERER_VITE_PPIO_APP_SECRET }}
 
       - name: Build Mac
         if: matrix.os == 'macos-latest'
@@ -92,9 +102,11 @@ jobs:
           APPLE_ID: ${{ vars.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ vars.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
-          RENDERER_VITE_AIHUBMIX_SECRET: ${{ vars.RENDERER_VITE_AIHUBMIX_SECRET }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NODE_OPTIONS: --max-old-space-size=8192
+          MAIN_VITE_MINERU_API_KEY: ${{ vars.MAIN_VITE_MINERU_API_KEY }}
+          RENDERER_VITE_AIHUBMIX_SECRET: ${{ vars.RENDERER_VITE_AIHUBMIX_SECRET }}
+          RENDERER_VITE_PPIO_APP_SECRET: ${{ vars.RENDERER_VITE_PPIO_APP_SECRET }}
 
       - name: Build Windows
         if: matrix.os == 'windows-latest'
@@ -103,8 +115,10 @@ jobs:
           yarn build:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RENDERER_VITE_AIHUBMIX_SECRET: ${{ vars.RENDERER_VITE_AIHUBMIX_SECRET }}
           NODE_OPTIONS: --max-old-space-size=8192
+          MAIN_VITE_MINERU_API_KEY: ${{ vars.MAIN_VITE_MINERU_API_KEY }}
+          RENDERER_VITE_AIHUBMIX_SECRET: ${{ vars.RENDERER_VITE_AIHUBMIX_SECRET }}
+          RENDERER_VITE_PPIO_APP_SECRET: ${{ vars.RENDERER_VITE_PPIO_APP_SECRET }}
 
       - name: Release
         uses: ncipollo/release-action@v1
@@ -113,5 +127,5 @@ jobs:
           allowUpdates: true
           makeLatest: false
           tag: ${{ steps.get-tag.outputs.tag }}
-          artifacts: 'dist/*.exe,dist/*.zip,dist/*.dmg,dist/*.AppImage,dist/*.snap,dist/*.deb,dist/*.rpm,dist/*.tar.gz,dist/latest*.yml,dist/rc*.yml,dist/*.blockmap'
+          artifacts: 'dist/*.exe,dist/*.zip,dist/*.dmg,dist/*.AppImage,dist/*.snap,dist/*.deb,dist/*.rpm,dist/*.tar.gz,dist/latest*.yml,dist/rc*.yml,dist/beta*.yml,dist/*.blockmap'
           token: ${{ secrets.GITHUB_TOKEN }}
